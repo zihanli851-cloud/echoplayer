@@ -1,0 +1,1 @@
+# Spellcheck providers for EchoPaper.

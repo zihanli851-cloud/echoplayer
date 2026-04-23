@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EchoPaper | 试卷智能审查系统</title>
+    <style>
+      :root {
+        --bg: #f5efe6;
+        --card: #fffaf4;
+        --line: #e7d9c7;
+        --text: #18332f;
+        --muted: #61746f;
+        --accent: #d1683d;
+        --accent-dark: #b7562d;
+        --success-bg: #e8f6ee;
+        --success-text: #1f6b45;
+        --error-bg: #fdeceb;
+        --error-text: #a63f37;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+        color: var(--text);
+        background:
+          radial-gradient(circle at top left, rgba(209, 104, 61, 0.16), transparent 22%),
+          linear-gradient(135deg, #f7f0e7 0%, #f1e7d7 100%);
+      }
+
+      .page {
+        width: min(960px, calc(100vw - 32px));
+        margin: 40px auto;
+      }
+
+      .card {
+        background: rgba(255, 250, 244, 0.95);
+        border: 1px solid rgba(255, 255, 255, 0.8);
+        border-radius: 28px;
+        box-shadow: 0 16px 40px rgba(36, 42, 39, 0.08);
+        padding: 32px;
+      }
+
+      h1 {
+        margin: 0 0 12px;
+        font-size: clamp(2rem, 4vw, 3rem);
+        line-height: 1.15;
+      }
+
+      p {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.8;
+      }
+
+      .eyebrow {
+        margin-bottom: 10px;
+        color: var(--accent);
+        font-size: 0.9rem;
+        font-weight: 700;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+      }
+
+      .form-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px;
+        margin-top: 28px;
+      }
+
+      label {
+        display: grid;
+        gap: 8px;
+        font-weight: 700;
+      }
+
+      label span {
+        font-size: 0.95rem;
+      }
+
+      input,
+      select,
+      button {
+        min-height: 48px;
+        border-radius: 14px;
+        border: 1px solid var(--line);
+        font: inherit;
+      }
+
+      input,
+      select {
+        width: 100%;
+        padding: 0 14px;
+        background: #fff;
+      }
+
+      input[type="file"] {
+        padding: 10px 14px;
+      }
+
+      .full {
+        grid-column: 1 / -1;
+      }
+
+      .actions {
+        margin-top: 24px;
+      }
+
+      button {
+        padding: 0 20px;
+        background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%);
+        color: #fff;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      .notice {
+        margin-top: 20px;
+        padding: 14px 16px;
+        border-radius: 14px;
+        font-weight: 700;
+      }
+
+      .notice.success {
+        background: var(--success-bg);
+        color: var(--success-text);
+      }
+
+      .notice.error {
+        background: var(--error-bg);
+        color: var(--error-text);
+      }
+
+      .placeholder {
+        margin-top: 28px;
+        padding: 20px;
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.72);
+        border: 1px dashed var(--line);
+      }
+
+      .placeholder h2 {
+        margin: 0 0 12px;
+        font-size: 1.2rem;
+      }
+
+      .placeholder ul {
+        margin: 14px 0 0;
+        padding-left: 20px;
+        color: var(--muted);
+        line-height: 1.8;
+      }
+
+      .result {
+        margin-top: 24px;
+        padding: 20px;
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.78);
+        border: 1px solid var(--line);
+      }
+
+      .result h2 {
+        margin: 0 0 12px;
+        font-size: 1.2rem;
+      }
+
+      .result dl {
+        display: grid;
+        grid-template-columns: 140px 1fr;
+        gap: 10px 14px;
+        margin: 0;
+      }
+
+      .result dt {
+        color: var(--muted);
+        font-weight: 700;
+      }
+
+      .result dd {
+        margin: 0;
+      }
+
+      @media (max-width: 720px) {
+        .page {
+          width: min(100vw - 20px, 100%);
+          margin: 20px auto;
+        }
+
+        .card {
+          padding: 20px;
+        }
+
+        .form-grid,
+        .result dl {
+          grid-template-columns: 1fr;
+        }
+
+        .full {
+          grid-column: auto;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <section class="card">
+        <p class="eyebrow">EchoPaper / 试卷智能审查系统</p>
+        <h1>试卷上传与智能审查</h1>
+        <p>上传 A/B 卷 PDF 后，系统会在同一次请求里同时运行代码版与 Agent 版能力链路，主视图展示代码版结果，并提供 Agent 对照结果。</p>
+
+        {% if message %}
+        <div class="notice {{ message_type }}">{{ message }}</div>
+        {% endif %}
+
+        <form action="/review" method="post" enctype="multipart/form-data" class="form-grid">
+          <label>
+            <span>教师姓名</span>
+            <input
+              type="text"
+              name="teacher_name"
+              value="{{ form_data.teacher_name }}"
+              placeholder="例如：李老师"
+              required
+            />
+          </label>
+
+          <label>
+            <span>教师工号</span>
+            <input
+              type="text"
+              name="teacher_id"
+              value="{{ form_data.teacher_id }}"
+              placeholder="例如：T20260420"
+              required
+            />
+          </label>
+
+          <label class="full">
+            <span>科目选择</span>
+            <select name="subject" required>
+              {% for value, label in subject_options %}
+              <option value="{{ value }}" {% if form_data.subject == value %}selected{% endif %}>
+                {{ label }}
+              </option>
+              {% endfor %}
+            </select>
+          </label>
+
+          <label>
+            <span>A 卷 PDF 上传</span>
+            <input type="file" name="paper_a" accept="application/pdf,.pdf" required />
+          </label>
+
+          <label>
+            <span>B 卷 PDF 上传</span>
+            <input type="file" name="paper_b" accept="application/pdf,.pdf" />
+          </label>
+
+          <div class="actions full">
+            <button type="submit">提交并生成审查报告</button>
+          </div>
+        </form>
+
+        <section class="placeholder">
+          <h2>MVP 当前流程</h2>
+          <ul>
+            <li>接收教师信息与试卷文件，并完成 PDF 校验</li>
+            <li>使用统一上传流程保存 PDF，并在同一次请求中双跑代码版 / Agent 版能力</li>
+            <li>完成文本提取、基础切题、查重和错字检查</li>
+            <li>生成代码主视图报告，并展示 Agent 对照摘要与差异</li>
+          </ul>
+        </section>
+
+        {% if result %}
+        <section class="result">
+          <h2>提交结果</h2>
+          <dl>
+            <dt>教师姓名</dt>
+            <dd>{{ result.teacher_name }}</dd>
+
+            <dt>教师工号</dt>
+            <dd>{{ result.teacher_id }}</dd>
+
+            <dt>科目</dt>
+            <dd>{{ result.subject }}</dd>
+
+            <dt>A 卷文件</dt>
+            <dd>{{ result.paper_a_name }}</dd>
+
+            <dt>B 卷文件</dt>
+            <dd>{{ result.paper_b_name or "未上传" }}</dd>
+
+            <dt>A 卷临时文件</dt>
+            <dd>{{ result.paper_a_temp }}</dd>
+
+            <dt>B 卷临时文件</dt>
+            <dd>{{ result.paper_b_temp or "未生成" }}</dd>
+
+            <dt>处理状态</dt>
+            <dd>{{ result.status }}</dd>
+          </dl>
+        </section>
+        {% endif %}
+      </section>
+    </main>
+  </body>
+</html>

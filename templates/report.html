@@ -1,0 +1,795 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EchoPaper | 审查报告</title>
+    <style>
+      :root {
+        --bg: #f5efe5;
+        --panel: rgba(255, 251, 246, 0.92);
+        --line: rgba(28, 49, 44, 0.12);
+        --text: #18312d;
+        --muted: #5c6d69;
+        --accent: #d4683c;
+        --teal: #1f6e63;
+        --warn: #c27a11;
+        --danger: #b84739;
+        --info: #3d6fb7;
+        --diff-add: rgba(31, 110, 99, 0.18);
+        --diff-remove: rgba(212, 104, 60, 0.18);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+        color: var(--text);
+        background:
+          radial-gradient(circle at top left, rgba(212, 104, 60, 0.12), transparent 24%),
+          linear-gradient(135deg, #f7f0e7 0%, #efe4d4 100%);
+      }
+
+      .watermark-layer {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        display: grid;
+        grid-template-columns: repeat(4, minmax(180px, 1fr));
+        gap: 44px;
+        padding: 48px;
+        opacity: 0.08;
+        transform: rotate(-18deg);
+        z-index: 0;
+      }
+
+      .watermark-layer span {
+        color: #5d6d69;
+        font-size: 18px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+      }
+
+      .page {
+        position: relative;
+        z-index: 1;
+        width: min(1320px, calc(100vw - 32px));
+        margin: 24px auto 48px;
+      }
+
+      .card {
+        background: var(--panel);
+        border: 1px solid rgba(255, 255, 255, 0.8);
+        border-radius: 28px;
+        box-shadow: 0 18px 40px rgba(32, 41, 37, 0.08);
+        padding: 28px;
+      }
+
+      .topbar {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        align-items: start;
+        margin-bottom: 20px;
+      }
+
+      .eyebrow {
+        margin: 0 0 10px;
+        color: var(--accent);
+        font-size: 0.85rem;
+        font-weight: 700;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+      }
+
+      h1,
+      h2,
+      h3,
+      h4 {
+        margin: 0;
+        line-height: 1.2;
+      }
+
+      p {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.7;
+      }
+
+      .meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-top: 14px;
+      }
+
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        min-height: 34px;
+        padding: 0 14px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.75);
+        border: 1px solid var(--line);
+        font-weight: 700;
+      }
+
+      .section {
+        margin-top: 24px;
+      }
+
+      .section-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        align-items: end;
+        margin-bottom: 16px;
+      }
+
+      .dashboard {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 16px;
+      }
+
+      .metric {
+        padding: 18px;
+        border-radius: 20px;
+        background: rgba(255, 255, 255, 0.78);
+        border: 1px solid var(--line);
+      }
+
+      .metric strong {
+        display: block;
+        color: var(--muted);
+        margin-bottom: 10px;
+      }
+
+      .metric span {
+        display: block;
+        font-size: 2rem;
+        font-weight: 800;
+        color: var(--text);
+      }
+
+      .metric small {
+        display: block;
+        margin-top: 8px;
+        color: var(--muted);
+      }
+
+      .dual-grid {
+        display: grid;
+        grid-template-columns: 1.2fr 1fr;
+        gap: 18px;
+      }
+
+      .compare-summary {
+        display: grid;
+        gap: 14px;
+      }
+
+      .summary-card {
+        padding: 18px;
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.78);
+        border: 1px solid var(--line);
+      }
+
+      .summary-card pre {
+        margin: 12px 0 0;
+        white-space: pre-wrap;
+        word-break: break-word;
+        color: var(--muted);
+        font-size: 0.92rem;
+      }
+
+      .badge-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 10px 0;
+      }
+
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        min-height: 30px;
+        padding: 0 12px;
+        border-radius: 999px;
+        font-size: 0.82rem;
+        font-weight: 700;
+      }
+
+      .badge.high {
+        color: var(--danger);
+        background: rgba(184, 71, 57, 0.12);
+      }
+
+      .badge.suspect {
+        color: var(--warn);
+        background: rgba(194, 122, 17, 0.16);
+      }
+
+      .badge.type {
+        color: var(--teal);
+        background: rgba(31, 110, 99, 0.12);
+      }
+
+      .badge.info {
+        color: var(--info);
+        background: rgba(61, 111, 183, 0.12);
+      }
+
+      .badge.agent {
+        color: #6d4ca1;
+        background: rgba(109, 76, 161, 0.12);
+      }
+
+      .table-shell {
+        overflow: auto;
+        border-radius: 20px;
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.76);
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      th,
+      td {
+        padding: 14px 16px;
+        border-bottom: 1px solid var(--line);
+        text-align: left;
+        vertical-align: top;
+      }
+
+      th {
+        background: rgba(247, 241, 232, 0.96);
+      }
+
+      .empty {
+        padding: 22px;
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.72);
+        border: 1px dashed var(--line);
+      }
+
+      .duplicate-list {
+        display: grid;
+        gap: 16px;
+      }
+
+      .duplicate-card {
+        padding: 20px;
+        border-radius: 22px;
+        background: rgba(255, 255, 255, 0.78);
+        border: 1px solid var(--line);
+      }
+
+      .duplicate-top {
+        display: flex;
+        justify-content: space-between;
+        gap: 14px;
+        align-items: start;
+        margin-bottom: 14px;
+      }
+
+      .compare-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+      }
+
+      .compare-pane {
+        padding: 16px;
+        border-radius: 18px;
+        background: #fff;
+        border: 1px solid var(--line);
+      }
+
+      .compare-pane strong {
+        display: block;
+        margin-bottom: 10px;
+      }
+
+      .compare-text {
+        white-space: pre-wrap;
+        line-height: 1.9;
+      }
+
+      mark.diff-added,
+      mark.diff-removed {
+        padding: 0 2px;
+        border-radius: 4px;
+      }
+
+      mark.diff-added {
+        background: var(--diff-add);
+        color: var(--teal);
+      }
+
+      mark.diff-removed {
+        background: var(--diff-remove);
+        color: var(--danger);
+      }
+
+      .review-area {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        align-items: center;
+        margin-top: 16px;
+        padding-top: 16px;
+        border-top: 1px dashed var(--line);
+      }
+
+      .review-area select {
+        min-height: 40px;
+        padding: 0 12px;
+        border-radius: 12px;
+        border: 1px solid var(--line);
+        background: #fff;
+        font: inherit;
+      }
+
+      .comparison-note {
+        margin-top: 12px;
+        padding: 12px 14px;
+        border-radius: 14px;
+        background: rgba(247, 241, 232, 0.95);
+        border: 1px dashed var(--line);
+      }
+
+      .actions {
+        margin-top: 20px;
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .actions a,
+      .actions button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 44px;
+        padding: 0 16px;
+        border-radius: 999px;
+        border: 1px solid var(--line);
+        background: #fff;
+        color: var(--text);
+        text-decoration: none;
+        font: inherit;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      @media (max-width: 1080px) {
+        .dashboard,
+        .compare-grid,
+        .dual-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .watermark-layer {
+          grid-template-columns: repeat(2, minmax(140px, 1fr));
+        }
+      }
+
+      @media (max-width: 720px) {
+        .page {
+          width: min(100vw - 20px, 100%);
+        }
+
+        .card {
+          padding: 20px;
+        }
+
+        .topbar,
+        .section-head,
+        .duplicate-top,
+        .review-area {
+          display: grid;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="watermark-layer" id="watermark-layer" aria-hidden="true"></div>
+
+    <main class="page">
+      <section class="card">
+        <div class="topbar">
+          <div>
+            <p class="eyebrow">EchoPaper / 审查报告</p>
+            <h1>试卷智能审查结果</h1>
+            <p>
+              教师：{{ report.teacher_name }}（{{ report.teacher_id }}）
+              ｜ 科目：{{ report.subject }}
+              ｜ 生成时间：{{ report.generated_at.strftime('%Y-%m-%d %H:%M:%S') }}
+            </p>
+            <div class="meta">
+              {% for paper in report.uploaded_papers %}
+              <span class="pill">{{ paper.paper_id }} 卷：{{ paper.filename }} / {{ paper.page_count }} 页</span>
+              {% endfor %}
+            </div>
+          </div>
+
+          <div class="actions">
+            <a href="/">返回上传页</a>
+            <button type="button" id="export-json">导出当前对照 JSON</button>
+            <button type="button" onclick="window.print()">打印 / 导出 PDF</button>
+          </div>
+        </div>
+
+        <section class="section">
+          <div class="section-head">
+            <div>
+              <h2>Dashboard</h2>
+              <p>主视图始终展示代码版结果，右侧补充 Agent 对照统计。</p>
+            </div>
+          </div>
+
+          <div class="dual-grid">
+            <div class="dashboard">
+              {% for card in dashboard_cards %}
+              <article class="metric">
+                <strong>{{ card.label }}</strong>
+                <span>{{ card.value }}</span>
+                <small>{{ card.hint }}</small>
+              </article>
+              {% endfor %}
+            </div>
+
+            <div class="dashboard">
+              {% for card in agent_dashboard_cards %}
+              <article class="metric">
+                <strong>{{ card.label }}</strong>
+                <span>{{ card.value }}</span>
+                <small>{{ card.hint }}</small>
+              </article>
+              {% endfor %}
+            </div>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="section-head">
+            <div>
+              <h2>代码版 / Agent 版模块对照</h2>
+              <p>用于快速判断两个实现在哪些模块一致，哪些模块还存在明显差异。</p>
+            </div>
+          </div>
+
+          <div class="compare-summary">
+            {% for section in dual_run_sections %}
+            <article class="summary-card">
+              <h3>{{ section.module_name }}</h3>
+              <div class="badge-row">
+                <span class="badge type">代码版</span>
+                <span class="badge agent">Agent 版</span>
+                <span class="badge {% if section.status == '一致' %}type{% elif section.status == 'Agent 未返回' %}high{% else %}suspect{% endif %}">
+                  {{ section.status }}
+                </span>
+              </div>
+              <p>{{ section.diff_summary }}</p>
+              <div class="dual-grid" style="margin-top: 14px;">
+                <div class="table-shell">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>代码版摘要</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td><pre>{{ section.code_result | tojson(indent=2) }}</pre></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div class="table-shell">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Agent 版摘要</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td><pre>{{ section.agent_result | tojson(indent=2) }}</pre></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </article>
+            {% endfor %}
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="section-head">
+            <div>
+              <h2>历史题库状态</h2>
+              <p>当前请求会把上传试卷与本地 `history_bank` 做文本相似度比对，这里展示本次参与比对的历史题库装载情况。</p>
+            </div>
+          </div>
+
+          <div class="dashboard">
+            <article class="metric">
+              <strong>历史库文件总数</strong>
+              <span>{{ history_bank_summary.total_files or 0 }}</span>
+              <small>扫描到的 PDF 文件数量</small>
+            </article>
+            <article class="metric">
+              <strong>成功加载</strong>
+              <span>{{ history_bank_summary.loaded_files or 0 }}</span>
+              <small>成功提取文本并切题的历史试卷数量</small>
+            </article>
+            <article class="metric">
+              <strong>历史题目数</strong>
+              <span>{{ history_bank_summary.question_count or 0 }}</span>
+              <small>本次可参与历史比对的题目总数</small>
+            </article>
+          </div>
+
+          {% if history_bank_summary.load_error %}
+          <div class="comparison-note" style="margin-top: 16px;">
+            <p>历史题库加载失败：{{ history_bank_summary.load_error }}</p>
+          </div>
+          {% elif history_bank_summary.failed_files %}
+          <div class="comparison-note" style="margin-top: 16px;">
+            <p>有 {{ history_bank_summary.failed_files }} 份历史试卷未成功加载，系统已自动跳过它们，不影响当前报告生成。</p>
+          </div>
+          {% endif %}
+
+          {% if history_bank_summary.failures %}
+          <div class="table-shell" style="margin-top: 16px;">
+            <table>
+              <thead>
+                <tr>
+                  <th>未加载文件</th>
+                  <th>原因</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in history_bank_summary.failures[:8] %}
+                <tr>
+                  <td>{{ row.filename }}</td>
+                  <td>{{ row.reason }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% endif %}
+        </section>
+
+        <section class="section">
+          <div class="section-head">
+            <div>
+              <h2>错字漏字清单</h2>
+              <p>主表展示代码版结果，并标注当前 Agent 对照状态。</p>
+            </div>
+          </div>
+
+          {% if spellcheck_rows %}
+          <div class="table-shell">
+            <table>
+              <thead>
+                <tr>
+                  <th>来源</th>
+                  <th>题号</th>
+                  <th>问题类型</th>
+                  <th>疑似问题</th>
+                  <th>修改建议</th>
+                  <th>对照状态</th>
+                  <th>说明</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in spellcheck_rows %}
+                <tr>
+                  <td>{{ row.paper_label }}</td>
+                  <td>{{ row.question_no }}</td>
+                  <td>{{ row.issue_type }}</td>
+                  <td>{{ row.issue_text }}</td>
+                  <td>{{ row.suggestion }}</td>
+                  <td>
+                    <span class="badge {% if row.compare_status == '一致' %}type{% else %}suspect{% endif %}">
+                      {{ row.compare_status }}
+                    </span>
+                  </td>
+                  <td>{{ row.compare_note }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% else %}
+          <div class="empty">
+            <p>代码版当前未检测到明显错字、标点或重复字问题。</p>
+          </div>
+          {% endif %}
+
+          {% if agent_only_spellcheck_rows %}
+          <div class="section" style="margin-top: 16px;">
+            <div class="section-head">
+              <div>
+                <h3>Agent 独有错字发现</h3>
+                <p>这些问题未出现在代码版结果中，仅供当前页面对照参考。</p>
+              </div>
+            </div>
+            <div class="table-shell">
+              <table>
+                <thead>
+                  <tr>
+                    <th>来源</th>
+                    <th>题号</th>
+                    <th>问题类型</th>
+                    <th>疑似问题</th>
+                    <th>修改建议</th>
+                    <th>状态</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for row in agent_only_spellcheck_rows %}
+                  <tr>
+                    <td>{{ row.paper_label }}</td>
+                    <td>{{ row.question_no }}</td>
+                    <td>{{ row.issue_type }}</td>
+                    <td>{{ row.issue_text }}</td>
+                    <td>{{ row.suggestion }}</td>
+                    <td><span class="badge agent">{{ row.compare_status }}</span></td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          {% endif %}
+        </section>
+
+        <section class="section">
+          <div class="section-head">
+            <div>
+              <h2>逐题重复明细</h2>
+              <p>主卡片展示代码版重复明细，并标注与 Agent 结果的对应状态。</p>
+            </div>
+          </div>
+
+          {% if duplicate_rows %}
+          <div class="duplicate-list">
+            {% for row in duplicate_rows %}
+            <article class="duplicate-card">
+              <div class="duplicate-top">
+                <div>
+                  <h3>{{ row.comparison_label }}</h3>
+                  <div class="badge-row">
+                    <span class="badge type">代码 {{ row.score }}%</span>
+                    {% if row.agent_score is not none %}
+                    <span class="badge agent">Agent {{ row.agent_score }}%</span>
+                    {% endif %}
+                    <span class="badge {% if row.level == '高度重复' %}high{% else %}suspect{% endif %}">
+                      {{ row.level }}
+                    </span>
+                    <span class="badge {% if row.compare_status == '一致' %}type{% elif row.compare_status == '评分不同' %}info{% else %}suspect{% endif %}">
+                      {{ row.compare_status }}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="compare-grid">
+                <section class="compare-pane">
+                  <strong>{{ row.source_label }}</strong>
+                  <div class="compare-text">{{ row.source_html | safe }}</div>
+                </section>
+                <section class="compare-pane">
+                  <strong>{{ row.target_label }}</strong>
+                  <div class="compare-text">{{ row.target_html | safe }}</div>
+                </section>
+              </div>
+
+              <div class="comparison-note">
+                <p>{{ row.compare_note }}</p>
+              </div>
+
+              <div class="review-area">
+                <p>人工复核：请根据左/右差异高亮确认是否属于真实重复。</p>
+                <label>
+                  <select name="review_status_{{ row.match_id }}">
+                    {% for option in row.review_options %}
+                    <option value="{{ option }}" {% if option == row.review_status %}selected{% endif %}>
+                      {{ option }}
+                    </option>
+                    {% endfor %}
+                  </select>
+                </label>
+              </div>
+            </article>
+            {% endfor %}
+          </div>
+          {% else %}
+          <div class="empty">
+            <p>代码版当前未发现达到阈值的重复题目对。</p>
+          </div>
+          {% endif %}
+
+          {% if agent_only_duplicate_rows %}
+          <div class="section" style="margin-top: 16px;">
+            <div class="section-head">
+              <div>
+                <h3>Agent 独有重复发现</h3>
+                <p>这些题目对只在 Agent 结果中出现，用于当前请求内的对照查看。</p>
+              </div>
+            </div>
+            <div class="duplicate-list">
+              {% for row in agent_only_duplicate_rows %}
+              <article class="duplicate-card">
+                <div class="duplicate-top">
+                  <div>
+                    <h4>{{ row.comparison_label }}</h4>
+                    <div class="badge-row">
+                      <span class="badge agent">Agent {{ row.score }}%</span>
+                      <span class="badge {% if row.level == '高度重复' %}high{% else %}suspect{% endif %}">
+                        {{ row.level }}
+                      </span>
+                      <span class="badge agent">{{ row.compare_status }}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="compare-grid">
+                  <section class="compare-pane">
+                    <strong>{{ row.source_label }}</strong>
+                    <div class="compare-text">{{ row.source_html | safe }}</div>
+                  </section>
+                  <section class="compare-pane">
+                    <strong>{{ row.target_label }}</strong>
+                    <div class="compare-text">{{ row.target_html | safe }}</div>
+                  </section>
+                </div>
+
+                <div class="comparison-note">
+                  <p>{{ row.compare_note }}</p>
+                </div>
+              </article>
+              {% endfor %}
+            </div>
+          </div>
+          {% endif %}
+        </section>
+      </section>
+    </main>
+
+    <script>
+      (function () {
+        const watermarkLayer = document.getElementById("watermark-layer");
+        const watermarkText = "{{ report.teacher_name }} / {{ report.teacher_id }}";
+        watermarkLayer.innerHTML = Array.from({ length: 20 }, () => `<span>${watermarkText}</span>`).join("");
+
+        const exportButton = document.getElementById("export-json");
+        const exportPayload = {{ export_payload | tojson }};
+        exportButton.addEventListener("click", function () {
+          const blob = new Blob([JSON.stringify(exportPayload, null, 2)], {
+            type: "application/json;charset=utf-8"
+          });
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.href = url;
+          link.download = "echopaper-dual-run-report.json";
+          link.click();
+          URL.revokeObjectURL(url);
+        });
+      })();
+    </script>
+  </body>
+</html>
