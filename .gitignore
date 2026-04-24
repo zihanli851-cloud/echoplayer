@@ -1,10 +1,17 @@
 .venv/
 __pycache__/
 *.py[cod]
+*.log
 
 .pytest_cache/
 .coverage
 htmlcov/
+
+.env
+.env.*
+
+.vscode/
+.idea/
 
 data/temp_uploads/
 data/echopaper.db
