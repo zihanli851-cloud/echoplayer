@@ -19,3 +19,8 @@ data/datasets/
 
 .DS_Store
 Thumbs.db
+
+.pip-temp/
+.pytest_tmp/
+pytest-cache-files-*/
+git_index_codex_tmp*

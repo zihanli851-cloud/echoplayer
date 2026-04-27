@@ -7,6 +7,7 @@ from fastapi.templating import Jinja2Templates
 from app.models.schemas import UploadedPaper
 from app.services.comparator import AgentSimilarityComparator, CodeSimilarityComparator
 from app.services.dual_run import DualRunReviewService, ReviewPipeline
+from app.services.nuwa_service import NuwaService
 from app.services.pdf_parser import AgentPdfParser, CodePdfParser, PdfParseError
 from app.services.question_splitter import AgentQuestionSplitter, RuleQuestionSplitter
 from app.services.report_builder import ReportBuilder
@@ -167,6 +168,7 @@ async def review(
                     "load_error": str(exc),
                 }
 
+        nuwa_service = NuwaService()
         dual_run_service = DualRunReviewService(
             code_pipeline=ReviewPipeline(
                 pipeline_name="代码版",
@@ -179,8 +181,8 @@ async def review(
                 pipeline_name="Agent 版",
                 extraction_provider=AgentPdfParser(),
                 split_provider=AgentQuestionSplitter(),
-                compare_provider=AgentSimilarityComparator(),
-                spellcheck_provider=NuwaSpellcheckProvider(),
+                compare_provider=AgentSimilarityComparator(nuwa_service=nuwa_service),
+                spellcheck_provider=NuwaSpellcheckProvider(nuwa_service=nuwa_service),
             ),
         )
         code_run_result, agent_run_result = dual_run_service.run(

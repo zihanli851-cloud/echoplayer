@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
+from app.routes.nuwa import router as nuwa_router
 from app.routes.web import router as web_router
 from app.services.history_bank import HistoryBankService
 from app.utils.file_manager import ensure_directory
@@ -61,6 +62,7 @@ app = FastAPI(
 
 
 app.include_router(web_router)
+app.include_router(nuwa_router)
 
 
 static_dir = BASE_DIR / "static"

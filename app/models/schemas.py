@@ -11,6 +11,7 @@ class UploadedPaper(BaseModel):
     filename: str
     subject: str
     temp_path: str
+    pdf_url: str | None = None
     text_content: str = ""
     page_count: int = 0
 

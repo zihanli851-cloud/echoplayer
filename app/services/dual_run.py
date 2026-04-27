@@ -72,6 +72,7 @@ class ReviewPipeline:
             questions_by_paper.get("A", []),
             questions_by_paper.get("B", []),
             history_questions,
+            uploaded_papers=papers,
         )
 
         spellcheck_issues: list[SpellcheckIssue] = []

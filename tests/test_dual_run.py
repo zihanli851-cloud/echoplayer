@@ -60,6 +60,8 @@ class FakeCompareProvider(SimilarityComparatorProvider):
         paper_a_questions: list[Question],
         paper_b_questions: list[Question] | None = None,
         history_questions: list[Question] | None = None,
+        *,
+        uploaded_papers: list[UploadedPaper] | None = None,
     ) -> list[SimilarityMatch]:
         self.calls += 1
         self.last_history_count = len(history_questions or [])

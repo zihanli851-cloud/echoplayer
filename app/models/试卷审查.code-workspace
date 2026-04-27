@@ -1,0 +1,12 @@
+{
+	"folders": [
+		{
+			"path": "../../.."
+		},
+		{
+			"name": "EchoPaper",
+			"path": "../.."
+		}
+	],
+	"settings": {}
+}

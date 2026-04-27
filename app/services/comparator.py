@@ -4,7 +4,9 @@ from abc import ABC, abstractmethod
 import re
 import unicodedata
 
-from app.models.schemas import Question, SimilarityMatch
+from app.models.schemas import Question, SimilarityMatch, UploadedPaper
+from app.services.nuwa_service import NuwaService, NuwaServiceError
+from app.services.spellcheck.nuwa_provider import build_questions_data
 
 try:
     from rapidfuzz import fuzz
@@ -33,6 +35,8 @@ class SimilarityComparatorProvider(ABC):
         paper_a_questions: list[Question],
         paper_b_questions: list[Question] | None = None,
         history_questions: list[Question] | None = None,
+        *,
+        uploaded_papers: list[UploadedPaper] | None = None,
     ) -> list[SimilarityMatch]:
         """Run internal, cross-paper, and history-bank comparison."""
 
@@ -58,6 +62,8 @@ class CodeSimilarityComparator(SimilarityComparatorProvider):
         paper_a_questions: list[Question],
         paper_b_questions: list[Question] | None = None,
         history_questions: list[Question] | None = None,
+        *,
+        uploaded_papers: list[UploadedPaper] | None = None,
     ) -> list[SimilarityMatch]:
         matches: list[SimilarityMatch] = []
         matches.extend(
@@ -104,14 +110,20 @@ class CodeSimilarityComparator(SimilarityComparatorProvider):
 
 
 class AgentSimilarityComparator(SimilarityComparatorProvider):
-    """Placeholder Agent-side comparator that reuses the code comparison logic."""
+    """Agent-side comparator that uses Nuwa history matches and local fallback."""
 
     provider_name = "agent_similarity_comparator"
     provider_label = "Agent 版查重比对"
-    is_placeholder = True
-    provider_note = "当前为占位实现，复用代码版相似度计算逻辑。"
+    is_placeholder = False
+    provider_note = ""
 
-    def __init__(self, fallback_provider: SimilarityComparatorProvider | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        nuwa_service: NuwaService | None = None,
+        fallback_provider: SimilarityComparatorProvider | None = None,
+    ) -> None:
+        self.nuwa_service = nuwa_service or NuwaService()
         self.fallback_provider = fallback_provider or CodeSimilarityComparator()
 
     def compare(
@@ -119,11 +131,62 @@ class AgentSimilarityComparator(SimilarityComparatorProvider):
         paper_a_questions: list[Question],
         paper_b_questions: list[Question] | None = None,
         history_questions: list[Question] | None = None,
+        *,
+        uploaded_papers: list[UploadedPaper] | None = None,
     ) -> list[SimilarityMatch]:
-        return self.fallback_provider.compare(
+        local_matches = self.fallback_provider.compare(
             paper_a_questions,
             paper_b_questions,
             history_questions,
+            uploaded_papers=uploaded_papers,
+        )
+        local_non_history = [
+            match for match in local_matches if match.comparison_type != "history_bank"
+        ]
+        local_history_by_paper: dict[str, list[SimilarityMatch]] = {"A": [], "B": []}
+        for match in local_matches:
+            if match.comparison_type == "history_bank":
+                local_history_by_paper.setdefault(match.source_paper_id, []).append(match)
+
+        paper_by_id = {paper.paper_id: paper for paper in uploaded_papers or []}
+        history_matches: list[SimilarityMatch] = []
+        note_parts: list[str] = []
+
+        for paper_id, questions in (("A", paper_a_questions), ("B", paper_b_questions or [])):
+            if not questions:
+                continue
+
+            paper = paper_by_id.get(paper_id)
+            if paper is None:
+                history_matches.extend(local_history_by_paper.get(paper_id, []))
+                note_parts.append(f"{paper_id} 卷缺少试卷元数据，历史题库对比已回退本地规则。")
+                continue
+
+            questions_data = build_questions_data(paper, questions)
+            try:
+                response = self.nuwa_service.execute_compare_workflow(questions_data)
+            except NuwaServiceError as exc:
+                history_matches.extend(local_history_by_paper.get(paper_id, []))
+                note_parts.append(f"{paper_id} 卷女娲智能对比调用失败，历史题库结果已回退本地规则：{exc}")
+                continue
+
+            plagiarism_details = _find_first_list(response, "plagiarism_details")
+            if plagiarism_details is None:
+                history_matches.extend(local_history_by_paper.get(paper_id, []))
+                note_parts.append(f"{paper_id} 卷女娲未返回 plagiarism_details，历史题库结果已回退本地规则。")
+                continue
+
+            parsed_matches = _parse_plagiarism_details(plagiarism_details, questions, paper_id)
+            history_matches.extend(parsed_matches)
+            note_parts.append(f"{paper_id} 卷历史题库智能对比已接入女娲工作流。")
+
+        note_parts.append("卷内与 A/B 交叉查重仍使用本地规则计算。")
+        self.provider_note = "".join(note_parts)
+
+        return sorted(
+            [*local_non_history, *history_matches],
+            key=lambda item: item.similarity_score,
+            reverse=True,
         )
 
 
@@ -249,3 +312,91 @@ def compare_against_history_bank(
         matches.extend(source_matches)
 
     return sorted(matches, key=lambda item: item.similarity_score, reverse=True)
+
+
+def _find_first_list(value, target_key: str):
+    if isinstance(value, dict):
+        for key, child in value.items():
+            if key == target_key and isinstance(child, list):
+                return child
+            nested = _find_first_list(child, target_key)
+            if nested is not None:
+                return nested
+    elif isinstance(value, list):
+        for child in value:
+            nested = _find_first_list(child, target_key)
+            if nested is not None:
+                return nested
+    return None
+
+
+def _parse_plagiarism_details(
+    plagiarism_details: list,
+    questions: list[Question],
+    paper_id: str,
+) -> list[SimilarityMatch]:
+    question_by_no = {question.question_no: question for question in questions}
+    matches: list[SimilarityMatch] = []
+
+    for index, item in enumerate(plagiarism_details, start=1):
+        if not isinstance(item, dict):
+            continue
+
+        question_number = str(item.get("question_number", "")).strip()
+        source_question = question_by_no.get(question_number)
+        if source_question is None:
+            if len(questions) == 1:
+                source_question = questions[0]
+            else:
+                continue
+
+        matched_historical_question = str(item.get("matched_historical_question", "")).strip()
+        if not matched_historical_question:
+            matched_historical_question = str(item.get("diff_highlight", "")).strip()
+        if not matched_historical_question:
+            continue
+
+        score = _parse_similarity_level(item.get("similarity_level"))
+        matches.append(
+            SimilarityMatch(
+                match_id=f"history_bank-{source_question.question_id}-nuwa-{index}",
+                comparison_type="history_bank",
+                source_paper_id=paper_id,
+                source_paper_label=paper_id,
+                source_question_id=source_question.question_id,
+                source_question_no=source_question.question_no,
+                source_text=source_question.content,
+                target_paper_id="H",
+                target_paper_label="女娲知识库",
+                target_question_id=f"H-{paper_id}-{index}",
+                target_question_no=str(index),
+                target_text=matched_historical_question,
+                similarity_score=round(score, 2),
+                level=classify_similarity(score),
+            )
+        )
+
+    return sorted(matches, key=lambda current: current.similarity_score, reverse=True)
+
+
+def _parse_similarity_level(value) -> float:
+    text = str(value or "").strip()
+    if not text:
+        return 85.0
+
+    exact_match = re.fullmatch(r"(\d+(?:\.\d+)?)%", text)
+    if exact_match:
+        return float(exact_match.group(1))
+
+    range_match = re.fullmatch(r"(\d+(?:\.\d+)?)%\s*-\s*(\d+(?:\.\d+)?)%", text)
+    if range_match:
+        low = float(range_match.group(1))
+        high = float(range_match.group(2))
+        return (low + high) / 2
+
+    values = [float(match) for match in re.findall(r"\d+(?:\.\d+)?", text)]
+    if len(values) >= 2:
+        return (values[0] + values[1]) / 2
+    if len(values) == 1:
+        return values[0]
+    return 85.0
