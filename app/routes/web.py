@@ -180,7 +180,7 @@ async def review(
             agent_pipeline=ReviewPipeline(
                 pipeline_name="Agent 版",
                 extraction_provider=AgentPdfParser(),
-                split_provider=AgentQuestionSplitter(),
+                split_provider=AgentQuestionSplitter(nuwa_service=nuwa_service),
                 compare_provider=AgentSimilarityComparator(nuwa_service=nuwa_service),
                 spellcheck_provider=NuwaSpellcheckProvider(nuwa_service=nuwa_service),
             ),

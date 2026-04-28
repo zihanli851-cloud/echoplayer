@@ -1,6 +1,27 @@
 from app.models.schemas import Question, UploadedPaper
 from app.services.comparator import AgentSimilarityComparator, CodeSimilarityComparator
+from app.services.question_splitter import AgentQuestionSplitter
 from app.services.spellcheck.nuwa_provider import NuwaSpellcheckProvider
+
+
+class FakeNuwaSplitService:
+    def execute_split_workflow(self, paper_data: dict) -> dict:
+        assert paper_data["paper_id"] == "A"
+        assert paper_data["subject"] == "chinese"
+        assert "第一题" in paper_data["text_content"]
+        return {
+            "output": {
+                "sections": [
+                    {
+                        "title": "一、选择题",
+                        "content": [
+                            {"title": "1", "type": "question", "content": "第一题内容"},
+                            {"title": "2", "type": "question", "content": "第二题内容"},
+                        ],
+                    }
+                ]
+            }
+        }
 
 
 class FakeNuwaSpellcheckService:
@@ -36,6 +57,50 @@ class FakeNuwaCompareService:
                 ]
             }
         }
+
+
+class EmptyNuwaSplitService:
+    def execute_split_workflow(self, paper_data: dict) -> dict:
+        return {"output": {"message": "ok"}}
+
+
+def test_agent_question_splitter_maps_workflow_result() -> None:
+    provider = AgentQuestionSplitter(nuwa_service=FakeNuwaSplitService())
+    paper = UploadedPaper(
+        paper_id="A",
+        filename="a.pdf",
+        subject="chinese",
+        temp_path="a.pdf",
+        text_content="1. 第一题\n2. 第二题",
+        page_count=1,
+    )
+
+    questions = provider.split(paper.text_content, paper.paper_id, paper=paper)
+
+    assert len(questions) == 2
+    assert questions[0].question_no == "1"
+    assert questions[0].content == "第一题内容"
+    assert questions[1].question_no == "2"
+    assert provider.provider_note == "A 卷 Agent 切题已接入女娲工作流。"
+
+
+def test_agent_question_splitter_falls_back_to_rule_split_when_workflow_has_no_questions() -> None:
+    provider = AgentQuestionSplitter(nuwa_service=EmptyNuwaSplitService())
+    paper = UploadedPaper(
+        paper_id="A",
+        filename="a.pdf",
+        subject="chinese",
+        temp_path="a.pdf",
+        text_content="1. 第一题\n2. 第二题",
+        page_count=1,
+    )
+
+    questions = provider.split(paper.text_content, paper.paper_id, paper=paper)
+
+    assert len(questions) == 2
+    assert questions[0].question_no == "1"
+    assert questions[1].question_no == "2"
+    assert "已回退本地规则" in provider.provider_note
 
 
 def test_nuwa_spellcheck_provider_maps_workflow_result() -> None:

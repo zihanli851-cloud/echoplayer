@@ -1,5 +1,7 @@
-from pathlib import Path
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
+from pathlib import Path
 
 
 class PdfParseError(Exception):
@@ -32,16 +34,16 @@ class CodePdfParser(TextExtractionProvider):
 
 class AgentPdfParser(TextExtractionProvider):
     """
-    Placeholder Agent-side PDF parser.
+    Agent-side PDF parser.
 
-    The current MVP reuses the code parser to keep the interface stable while
-    preserving the dual-run comparison structure.
+    The Nuwa workflow chain still relies on local PDF text extraction first,
+    so the Agent pipeline intentionally reuses the same parser implementation.
     """
 
     provider_name = "agent_pdf_parser"
     provider_label = "Agent 版文本解析"
-    is_placeholder = True
-    provider_note = "当前为占位实现，复用代码版文本提取逻辑。"
+    is_placeholder = False
+    provider_note = "Agent 流程先复用本地 PDF 解析，再调用女娲工作流。"
 
     def __init__(self, fallback_provider: TextExtractionProvider | None = None) -> None:
         self.fallback_provider = fallback_provider or CodePdfParser()
@@ -60,6 +62,7 @@ def extract_text_from_pdf(pdf_path: Path) -> tuple[str, int]:
     Raises:
         PdfParseError: When the file is missing, unreadable, or no text can be extracted.
     """
+
     return CodePdfParser().extract(pdf_path)
 
 
@@ -74,13 +77,13 @@ def _extract_text_with_pdfplumber(pdf_path: Path) -> tuple[str, int]:
             import pdfplumber
         except ImportError as exc:
             raise PdfParseError(
-                "未安装 pdfplumber，无法解析 PDF。请先执行 pip install -r requirements.txt。"
+                "未安装 pdfplumber，无法解析 PDF。请先执行 `pip install -r requirements.txt`。"
             ) from exc
 
         page_texts: list[str] = []
         with pdfplumber.open(str(pdf_path)) as pdf:
             page_count = len(pdf.pages)
-            for page_index, page in enumerate(pdf.pages, start=1):
+            for page in pdf.pages:
                 text = page.extract_text() or ""
                 if text.strip():
                     page_texts.append(text.strip())

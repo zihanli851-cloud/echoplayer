@@ -32,7 +32,7 @@ class FakeSplitProvider(QuestionSplitProvider):
     def __init__(self) -> None:
         self.calls = 0
 
-    def split(self, text: str, paper_id: str) -> list[Question]:
+    def split(self, text: str, paper_id: str, *, paper=None) -> list[Question]:
         self.calls += 1
         return [
             Question(

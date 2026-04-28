@@ -20,7 +20,7 @@ class FakeSplitProvider(QuestionSplitProvider):
     provider_name = "fake_history_split"
     provider_label = "Fake History Split"
 
-    def split(self, text: str, paper_id: str) -> list[Question]:
+    def split(self, text: str, paper_id: str, *, paper=None) -> list[Question]:
         return [
             Question(
                 question_id=f"{paper_id}-1",

@@ -60,6 +60,7 @@ class ReviewPipeline:
             questions_by_paper[paper.paper_id] = self.split_provider.split(
                 paper.text_content,
                 paper.paper_id,
+                paper=paper,
             )
 
         all_questions = [

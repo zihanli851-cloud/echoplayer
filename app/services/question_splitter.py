@@ -1,7 +1,11 @@
-import re
-from abc import ABC, abstractmethod
+from __future__ import annotations
 
-from app.models.schemas import Question
+from abc import ABC, abstractmethod
+import re
+from typing import Any
+
+from app.models.schemas import Question, UploadedPaper
+from app.services.nuwa_service import NuwaService, NuwaServiceError
 
 
 CHINESE_NUMERAL_PATTERN = re.compile(r"^(?P<label>[一二三四五六七八九十]+)[、.．]\s*(?P<body>.*)$")
@@ -50,8 +54,28 @@ PREAMBLE_TRIGGER_KEYWORDS = (
     "考试用品",
     "任课教师",
     "学生姓名",
-    "学 号",
+    "学号",
 )
+
+QUESTION_BODY_KEYS = (
+    "content",
+    "question_content",
+    "question_text",
+    "text",
+    "body",
+    "stem",
+    "question",
+)
+QUESTION_NO_KEYS = (
+    "question_no",
+    "question_number",
+    "number",
+    "no",
+    "label",
+    "title",
+    "name",
+)
+QUESTION_CHILD_KEYS = ("content", "children", "items", "questions", "question_list", "sections", "data")
 
 
 class QuestionSplitProvider(ABC):
@@ -63,7 +87,13 @@ class QuestionSplitProvider(ABC):
     provider_note = ""
 
     @abstractmethod
-    def split(self, text: str, paper_id: str) -> list[Question]:
+    def split(
+        self,
+        text: str,
+        paper_id: str,
+        *,
+        paper: UploadedPaper | None = None,
+    ) -> list[Question]:
         """Split a paper text into structured questions."""
 
 
@@ -74,23 +104,97 @@ class RuleQuestionSplitter(QuestionSplitProvider):
     provider_label = "代码版规则切题"
     is_placeholder = False
 
-    def split(self, text: str, paper_id: str) -> list[Question]:
+    def split(
+        self,
+        text: str,
+        paper_id: str,
+        *,
+        paper: UploadedPaper | None = None,
+    ) -> list[Question]:
         return _split_questions_impl(text, paper_id)
 
 
 class AgentQuestionSplitter(QuestionSplitProvider):
-    """Placeholder Agent-side splitter that reuses the rule-based logic."""
+    """Agent-side splitter backed by a Nuwa workflow with local fallback."""
 
     provider_name = "agent_question_splitter"
     provider_label = "Agent 版切题"
-    is_placeholder = True
-    provider_note = "当前为占位实现，复用代码版切题逻辑。"
+    is_placeholder = False
+    provider_note = ""
 
-    def __init__(self, fallback_provider: QuestionSplitProvider | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        nuwa_service: NuwaService | None = None,
+        fallback_provider: QuestionSplitProvider | None = None,
+    ) -> None:
+        self.nuwa_service = nuwa_service or NuwaService()
         self.fallback_provider = fallback_provider or RuleQuestionSplitter()
+        self._paper_notes: dict[str, str] = {}
 
-    def split(self, text: str, paper_id: str) -> list[Question]:
-        return self.fallback_provider.split(text, paper_id)
+    def split(
+        self,
+        text: str,
+        paper_id: str,
+        *,
+        paper: UploadedPaper | None = None,
+    ) -> list[Question]:
+        stripped_text = text.strip()
+        if not stripped_text:
+            self._set_note(paper_id, f"{paper_id} 卷未提取到文本，Agent 切题跳过。")
+            return []
+
+        paper_payload = build_split_workflow_inputs(paper, paper_id, stripped_text)
+        try:
+            response = self.nuwa_service.execute_split_workflow(paper_payload)
+        except NuwaServiceError as exc:
+            self._set_note(paper_id, f"{paper_id} 卷女娲切题调用失败，已回退本地规则：{exc}")
+            return self.fallback_provider.split(stripped_text, paper_id, paper=paper)
+
+        questions = self._normalize_questions(response, paper_id)
+        if questions:
+            self._set_note(paper_id, f"{paper_id} 卷 Agent 切题已接入女娲工作流。")
+            return questions
+
+        self._set_note(paper_id, f"{paper_id} 卷女娲切题未返回可识别题目，已回退本地规则。")
+        return self.fallback_provider.split(stripped_text, paper_id, paper=paper)
+
+    def _normalize_questions(self, response: Any, paper_id: str) -> list[Question]:
+        items = _find_question_container(response)
+        if items is None:
+            return []
+
+        flattened_questions: list[Question] = []
+        seen_signatures: set[tuple[str, str]] = set()
+        _append_questions_from_value(items, paper_id, flattened_questions, seen_signatures)
+        return flattened_questions
+
+    def _set_note(self, paper_id: str, note: str) -> None:
+        self._paper_notes[paper_id] = note
+        self.provider_note = "；".join(self._paper_notes[key] for key in sorted(self._paper_notes))
+
+
+def build_split_workflow_inputs(
+    paper: UploadedPaper | None,
+    paper_id: str,
+    text: str,
+) -> dict[str, Any]:
+    """Build a forgiving split-workflow payload from local PDF extraction output."""
+
+    filename = paper.filename if paper else f"{paper_id}.pdf"
+    subject = paper.subject if paper else ""
+    page_count = paper.page_count if paper else 0
+
+    return {
+        "paper_id": paper_id,
+        "subject": subject,
+        "filename": filename,
+        "page_count": page_count,
+        "text_content": text,
+        "text": text,
+        "content": text,
+        "paper_text": text,
+    }
 
 
 def normalize_question_text(text: str) -> str:
@@ -104,7 +208,7 @@ def normalize_question_text(text: str) -> str:
     normalized = text.replace("\r\n", "\n").replace("\r", "\n").replace("\u3000", " ")
     normalized = re.sub(r"[ \t]+", " ", normalized)
     normalized = re.sub(r" +([一二三四五六七八九十]+[、.．])", r"\n\1", normalized)
-    normalized = re.sub(r" +((?:\d+、)|(?:\d+[.．](?!\d)))", r"\n\1", normalized)
+    normalized = re.sub(r" +((?:\d+、|(?:\d+[.．](?!\d))))", r"\n\1", normalized)
     normalized = re.sub(r" +([（(]\d+[)）])", r"\n\1", normalized)
     return normalized.strip()
 
@@ -186,7 +290,6 @@ def split_questions(text: str, paper_id: str) -> list[Question]:
     - 一、二、三
     - 1. 2. 3.
     - （1）（2）
-
     If no marker is found, the whole text becomes one fallback question.
     """
 
@@ -259,3 +362,114 @@ def _split_questions_impl(text: str, paper_id: str) -> list[Question]:
             raw_block=normalized_text,
         )
     ]
+
+
+def _find_question_container(value: Any) -> Any | None:
+    if isinstance(value, list):
+        if _looks_like_question_list(value):
+            return value
+        for child in value:
+            nested = _find_question_container(child)
+            if nested is not None:
+                return nested
+        return None
+
+    if isinstance(value, dict):
+        for child in value.values():
+            if isinstance(child, list) and _looks_like_question_list(child):
+                return child
+        for child in value.values():
+            nested = _find_question_container(child)
+            if nested is not None:
+                return nested
+
+    return None
+
+
+def _looks_like_question_list(value: list[Any]) -> bool:
+    if not value:
+        return False
+
+    dict_items = [item for item in value if isinstance(item, dict)]
+    if not dict_items:
+        return False
+
+    for item in dict_items:
+        if _extract_question_body(item):
+            return True
+        if any(key in item for key in QUESTION_CHILD_KEYS):
+            return True
+    return False
+
+
+def _append_questions_from_value(
+    value: Any,
+    paper_id: str,
+    questions: list[Question],
+    seen_signatures: set[tuple[str, str]],
+) -> None:
+    if isinstance(value, list):
+        for child in value:
+            _append_questions_from_value(child, paper_id, questions, seen_signatures)
+        return
+
+    if not isinstance(value, dict):
+        return
+
+    body = _extract_question_body(value)
+    if body:
+        normalized_body = body.strip()
+        if normalized_body:
+            question_no = _extract_question_no(value, normalized_body, len(questions) + 1)
+            signature = (question_no, normalized_body)
+            if signature not in seen_signatures:
+                seen_signatures.add(signature)
+                order = len(questions) + 1
+                questions.append(
+                    Question(
+                        question_id=f"{paper_id}-{order}",
+                        paper_id=paper_id,
+                        question_no=question_no,
+                        order=order,
+                        content=normalized_body,
+                        raw_block=normalized_body,
+                    )
+                )
+
+    for key in QUESTION_CHILD_KEYS:
+        child = value.get(key)
+        if isinstance(child, (list, dict)):
+            _append_questions_from_value(child, paper_id, questions, seen_signatures)
+
+
+def _extract_question_body(value: dict[str, Any]) -> str:
+    for key in QUESTION_BODY_KEYS:
+        candidate = value.get(key)
+        if isinstance(candidate, str) and candidate.strip():
+            return candidate.strip()
+    return ""
+
+
+def _extract_question_no(value: dict[str, Any], body: str, order: int) -> str:
+    for key in QUESTION_NO_KEYS:
+        candidate = value.get(key)
+        if not isinstance(candidate, str):
+            continue
+        normalized = candidate.strip()
+        if normalized and _looks_like_question_no(normalized):
+            return normalized
+
+    marker = match_question_marker(body)
+    if marker:
+        return marker[0]
+    return str(order)
+
+
+def _looks_like_question_no(value: str) -> bool:
+    if re.fullmatch(r"(?:第\s*)?\d+\s*题?", value):
+        return True
+    if re.fullmatch(r"[一二三四五六七八九十]+[、.．题]?", value):
+        return True
+    if re.fullmatch(r"[（(]\d+[)）]", value):
+        return True
+    return False

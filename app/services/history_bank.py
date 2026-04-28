@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from app.models.schemas import Question
+from app.models.schemas import Question, UploadedPaper
 from app.services.pdf_parser import CodePdfParser, PdfParseError, TextExtractionProvider
 from app.services.question_splitter import QuestionSplitProvider, RuleQuestionSplitter
 
@@ -85,7 +85,18 @@ class HistoryBankService:
 
             try:
                 text_content, page_count = self.extraction_provider.extract(pdf_path)
-                questions = self.split_provider.split(text_content, paper_id)
+                questions = self.split_provider.split(
+                    text_content,
+                    paper_id,
+                    paper=UploadedPaper(
+                        paper_id=paper_id,
+                        filename=pdf_path.name,
+                        subject="history_bank",
+                        temp_path=str(pdf_path),
+                        text_content=text_content,
+                        page_count=page_count,
+                    ),
+                )
             except PdfParseError as exc:
                 snapshot.failed_files += 1
                 snapshot.failures.append(
