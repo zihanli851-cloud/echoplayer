@@ -129,8 +129,39 @@ class CozeService:
         if workflow_error is not None:
             raise CozeServiceError(workflow_error)
 
+        # Coze 返回的 data 字段是 JSON 字符串，需要解析
+        data_str = result.get("data", "{}")
+        if isinstance(data_str, str):
+            try:
+                parsed_data = json.loads(data_str)
+            except (ValueError, TypeError):
+                parsed_data = {}
+        else:
+            parsed_data = data_str if isinstance(data_str, dict) else {}
+
+        result["_parsed_data"] = parsed_data
+
         self._cache[cache_key] = deepcopy(result)
         return result
+
+    def _extract_output(
+        self,
+        result: dict[str, Any],
+        output_key: str = "output",
+    ) -> Any:
+        """从 Coze 工作流结果中提取指定输出字段。"""
+        parsed = result.get("_parsed_data", {})
+        if isinstance(parsed, dict):
+            return parsed.get(output_key)
+        return None
+
+    def _extract_split_result(self, result: dict[str, Any]) -> Any:
+        """提取切题结果（split_result）。"""
+        return self._extract_output(result, "split_result")
+
+    def _extract_report(self, result: dict[str, Any]) -> Any:
+        """提取智能审查报告（output_report）。"""
+        return self._extract_output(result, "output_report")
 
     def execute_split(
         self,
