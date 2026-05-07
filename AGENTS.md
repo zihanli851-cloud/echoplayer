@@ -64,10 +64,17 @@ Coze Workflow API 用于 Agent 版智能审查能力。
 ```bash
 # Coze API 配置
 COZE_API_URL=https://api.coze.cn/v3/workflows/run
-COZE_WORKFLOW_ID=7637135521890959375  # 从 Coze 工作流 URL 获取
-COZE_BOT_TOKEN=your_bot_token_here      # 在 Coze 个人中心 -> API 管理 创建
+COZE_WORKFLOW_ID=7637135521890959375       # 综合审查工作流
+COZE_SPLIT_WORKFLOW_ID=7637166446480506899 # 切题工作流
+COZE_BOT_TOKEN=your_bot_token_here         # 在 Coze 个人中心 -> API 管理 创建
 COZE_TIMEOUT=60
 ```
+
+### Coze 工作流 ID
+| 工作流 | Workflow ID | 用途 |
+|--------|-------------|------|
+| 综合审查 | `7637135521890959375` | 切题+错字检查+比对一体化 |
+| 切题 | `7637166446480506899` | 智能识别试卷题目 |
 
 ### Coze API 端点
 - **工作流执行**: `POST /v3/workflows/run`
