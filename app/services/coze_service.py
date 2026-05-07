@@ -140,8 +140,7 @@ class CozeService:
     ) -> dict[str, Any]:
         """执行切题工作流。"""
         parameters = {
-            "paper_content": paper_content,
-            "paper_id": paper_id,
+            "paper_text_data": {"content": paper_content, "paper_id": paper_id},
         }
         return self.execute_workflow(parameters, workflow_id=self.split_workflow_id)
 
@@ -151,7 +150,7 @@ class CozeService:
     ) -> dict[str, Any]:
         """执行错别字检查工作流。"""
         parameters = {
-            "questions_data": questions_data,
+            "question_data": questions_data,
         }
         return self.execute_workflow(parameters, workflow_id=self.spellcheck_workflow_id)
 
@@ -162,7 +161,7 @@ class CozeService:
     ) -> dict[str, Any]:
         """执行相似度比对工作流。"""
         parameters = {
-            "questions_data": questions_data,
+            "question_data": questions_data,
         }
         if reference_data:
             parameters["reference_data"] = reference_data
@@ -178,14 +177,16 @@ class CozeService:
     ) -> dict[str, Any]:
         """执行综合审查工作流（切题+错字+比对一体化）。"""
         parameters = {
-            "paper_a_content": paper_a_content,
-            "paper_a_id": paper_a_id,
+            "question_data": {
+                "paper_a_content": paper_a_content,
+                "paper_a_id": paper_a_id,
+            },
         }
         if paper_b_content:
-            parameters["paper_b_content"] = paper_b_content
-            parameters["paper_b_id"] = paper_b_id
+            parameters["question_data"]["paper_b_content"] = paper_b_content
+            parameters["question_data"]["paper_b_id"] = paper_b_id
         if history_bank_path:
-            parameters["history_bank_path"] = history_bank_path
+            parameters["question_data"]["history_bank_path"] = history_bank_path
         return self.execute_workflow(parameters)
 
     def _extract_error_detail(self, response: requests.Response) -> str:
