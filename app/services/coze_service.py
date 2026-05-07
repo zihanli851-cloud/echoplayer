@@ -2,7 +2,9 @@
 Coze Workflow API 服务封装
 
 用于调用 Coze 平台的 Workflow API 执行试卷审查任务。
-API 文档: https://www.coze.cn/docs/api-reference
+API 文档: https://www.coze.cn/docs/developer_guides/workflow_run
+
+重要: Coze API 端点是 /v1/workflow/run (不是 /v3/workflows/run)
 """
 
 from __future__ import annotations
@@ -26,8 +28,8 @@ class CozeServiceError(Exception):
 class CozeService:
     """Service wrapper for calling Coze Workflow API.
 
-    Coze API 端点: POST https://api.coze.cn/v3/workflows/run
-    认证方式: Bearer Token (Bot Token)
+    Coze API 端点: POST https://api.coze.cn/v1/workflow/run
+    认证方式: Bearer Token (Personal Access Token)
 
     支持多个工作流:
     - 切题工作流 (split)
@@ -36,7 +38,8 @@ class CozeService:
     - 综合审查工作流 (默认)
     """
 
-    DEFAULT_API_URL = "https://api.coze.cn/v3/workflows/run"
+    # 正确的 API 端点 (v1 不是 v3)
+    DEFAULT_API_URL = "https://api.coze.cn/v1/workflow/run"
 
     # 默认工作流 ID
     DEFAULT_WORKFLOW_ID = "7637135521890959375"       # 综合审查工作流
@@ -156,64 +159,70 @@ class CozeService:
     def execute_compare(
         self,
         questions_data: dict[str, Any],
+        reference_data: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """执行相似度比对工作流。"""
         parameters = {
             "questions_data": questions_data,
         }
+        if reference_data:
+            parameters["reference_data"] = reference_data
         return self.execute_workflow(parameters, workflow_id=self.compare_workflow_id)
 
     def execute_paper_review(
         self,
-        paper_content: str,
-        *,
-        paper_id: str = "unknown",
-        subject: str = "unknown",
+        paper_a_content: str,
+        paper_b_content: str | None = None,
+        paper_a_id: str = "paper_a",
+        paper_b_id: str = "paper_b",
+        history_bank_path: str | None = None,
     ) -> dict[str, Any]:
-        """执行综合审查工作流（切题+错字+比对）。"""
+        """执行综合审查工作流（切题+错字+比对一体化）。"""
         parameters = {
-            "paper_content": paper_content,
-            "paper_id": paper_id,
-            "subject": subject,
+            "paper_a_content": paper_a_content,
+            "paper_a_id": paper_a_id,
         }
+        if paper_b_content:
+            parameters["paper_b_content"] = paper_b_content
+            parameters["paper_b_id"] = paper_b_id
+        if history_bank_path:
+            parameters["history_bank_path"] = history_bank_path
         return self.execute_workflow(parameters)
 
+    def _extract_error_detail(self, response: requests.Response) -> str:
+        """Extract user-friendly error message from response."""
+        try:
+            data = response.json()
+            return data.get("msg", response.text)
+        except Exception:
+            return response.text
+
+    def _extract_workflow_error(self, result: dict[str, Any]) -> str | None:
+        """Check if the workflow execution returned an error."""
+        code = result.get("code")
+        if code is not None and code != 0:
+            msg = result.get("msg", "Unknown error")
+            return f"Coze 工作流执行失败 (code={code}): {msg}"
+        return None
+
     def _resolve_timeout(self, timeout: float | None) -> float:
+        """Resolve timeout from parameter or environment."""
         if timeout is not None:
             return timeout
-        raw_timeout = os.getenv("COZE_TIMEOUT", "60").strip()
-        try:
-            return float(raw_timeout)
-        except ValueError:
-            return 60.0
+        env_timeout = os.getenv("COZE_TIMEOUT")
+        if env_timeout:
+            try:
+                return float(env_timeout)
+            except ValueError:
+                pass
+        return 60.0
 
-    def _extract_error_detail(self, response: requests.Response) -> str:
-        try:
-            body = response.json()
-        except ValueError:
-            return response.text.strip() or "无响应体"
-        if isinstance(body, dict):
-            return str(body.get("msg") or body.get("message") or body.get("detail") or body)
-        return str(body)
-
-    def _extract_workflow_error(self, result: Any) -> str | None:
-        """检查 Coze API 返回的业务错误码。"""
-        if not isinstance(result, dict):
-            return None
-
-        code = result.get("code")
-        msg = str(result.get("msg") or result.get("message") or "").strip()
-
-        if code == 0:
-            return None
-
-        data = result.get("data")
-        if isinstance(data, dict):
-            error = data.get("error") or data.get("Error")
-            if error:
-                return f"Coze 工作流执行错误：{error}"
-
-        if code is not None:
-            return f"Coze API 返回错误 code={code}：{msg or '未知错误'}"
-
-        return None
+    @property
+    def available_workflows(self) -> dict[str, str]:
+        """Return dict of available workflow IDs."""
+        return {
+            "default": self.workflow_id,
+            "split": self.split_workflow_id,
+            "spellcheck": self.spellcheck_workflow_id,
+            "compare": self.compare_workflow_id,
+        }

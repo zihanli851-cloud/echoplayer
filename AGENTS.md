@@ -77,7 +77,7 @@ COZE_TIMEOUT=60
 | 切题 | `7637166446480506899` | 智能识别试卷题目 |
 
 ### Coze API 端点
-- **工作流执行**: `POST /v3/workflows/run`
+- **工作流执行**: `POST /v1/workflow/run`
 - **认证方式**: `Authorization: Bearer {COZE_BOT_TOKEN}`
 
 ### Coze Provider
