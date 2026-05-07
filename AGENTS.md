@@ -41,9 +41,10 @@ EchoPaper 是一个基于 FastAPI + Jinja2 + SQLite 的试卷智能审查系统 
 │  └─ utils/
 │     └─ file_manager.py
 ├─ templates/           # Jinja2 模板
-├─ data/                 # 数据目录（SQLite、临时上传、历史题库）
-├─ scripts/              # 部署脚本
-├─ tests/                # 单元测试
+├─ data/               # 数据目录（SQLite、临时上传、历史题库）
+├─ scripts/             # 脚本（部署+预览）
+├─ tests/              # 单元测试
+├─ .env                # 环境变量配置
 └─ requirements.txt
 ```
 
@@ -79,10 +80,21 @@ COZE_TIMEOUT=60
 | `CozeService` | Coze Workflow API 封装 |
 
 ## 运行与预览
+
+### 预览链路（Coze 平台）
+- **预览命令**: `scripts/coze-preview-run.sh`
+- **预览端口**: `5000`（固定）
+- **预览方式**: FastAPI + Jinja2 动态渲染
+
+### 本地运行
 - **本地运行**: `uvicorn app.main:app --reload`
-- **本地访问**: `http://127.0.0.1:8000`
+- **本地访问**: `http://127.0.0.1:5000`
 - **部署运行**: `bash scripts/deploy_run.sh`
-- **部署端口**: `5000`（固定）
+
+## 项目配置说明
+- **project_type**: `web`（支持 Coze 平台预览）
+- **preview_enable**: `enabled`
+- **预览服务**: 通过 `uvicorn` 启动 FastAPI 应用，暴露 5000 端口
 
 ## 用户偏好与长期约束
 - 仅支持可直接提取文本的 PDF；扫描版图片 PDF 暂未接入 OCR

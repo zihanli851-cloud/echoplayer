@@ -6,14 +6,18 @@ run = ["bash", "scripts/deploy_run.sh"]
 kind = "service"
 flavor = "agent"
 
+[dev]
+build = ["bash", "scripts/coze-preview-build.sh"]
+run = ["bash", "scripts/coze-preview-run.sh"]
+
 [project]
 sub_id = "78984c44"
 name = "echopaper"
 requires = ["python-3.11"]
-project_type = "backend"
+project_type = "web"
 
 [preview]
-preview_enable = "disabled"
+preview_enable = "enabled"
 
 [subprojects]
 path = ["."]
