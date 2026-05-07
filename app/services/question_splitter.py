@@ -2,10 +2,11 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 import re
-from typing import Any
+from typing import Any, Union
 
 from app.models.schemas import Question, UploadedPaper
 from app.services.nuwa_service import NuwaService, NuwaServiceError
+from app.services.coze_service import CozeService, CozeServiceError
 
 
 CHINESE_NUMERAL_PATTERN = re.compile(r"^(?P<label>[一二三四五六七八九十]+)[、.．]\s*(?P<body>.*)$")
@@ -115,20 +116,38 @@ class RuleQuestionSplitter(QuestionSplitProvider):
 
 
 class AgentQuestionSplitter(QuestionSplitProvider):
-    """Agent-side splitter backed by a Nuwa workflow with local fallback."""
+    """Agent-side splitter backed by a Coze workflow (with optional Nuwa fallback) and local fallback."""
 
     provider_name = "agent_question_splitter"
-    provider_label = "Agent 版切题"
+    provider_label = "Coze 智能体切题"
     is_placeholder = False
     provider_note = ""
 
     def __init__(
         self,
         *,
+        coze_service: CozeService | None = None,
         nuwa_service: NuwaService | None = None,
         fallback_provider: QuestionSplitProvider | None = None,
     ) -> None:
-        self.nuwa_service = nuwa_service or NuwaService()
+        # 支持 Coze 或 Nuwa 服务
+        self._service: Any = None
+        self._service_type: str = ""
+        if coze_service is not None:
+            self._service = coze_service
+            self._service_type = "coze"
+        elif nuwa_service is not None:
+            self._service = nuwa_service
+            self._service_type = "nuwa"
+        else:
+            # 默认创建 CozeService
+            try:
+                self._service = CozeService()
+                self._service_type = "coze"
+            except CozeServiceError:
+                self._service = NuwaService()
+                self._service_type = "nuwa"
+
         self.fallback_provider = fallback_provider or RuleQuestionSplitter()
         self._paper_notes: dict[str, str] = {}
 
@@ -145,18 +164,25 @@ class AgentQuestionSplitter(QuestionSplitProvider):
             return []
 
         paper_payload = build_split_workflow_inputs(paper, paper_id, stripped_text)
+
         try:
-            response = self.nuwa_service.execute_split_workflow(paper_payload)
-        except NuwaServiceError as exc:
-            self._set_note(paper_id, f"{paper_id} 卷女娲切题调用失败，已回退本地规则：{exc}")
+            if self._service_type == "coze":
+                response = self._service.execute_split(paper_payload)
+            else:
+                response = self._service.execute_split_workflow(paper_payload)
+        except (CozeServiceError, NuwaServiceError) as exc:
+            service_name = "Coze" if self._service_type == "coze" else "女娲"
+            self._set_note(paper_id, f"{paper_id} 卷 {service_name} 切题调用失败，已回退本地规则：{exc}")
             return self.fallback_provider.split(stripped_text, paper_id, paper=paper)
 
         questions = self._normalize_questions(response, paper_id)
         if questions:
-            self._set_note(paper_id, f"{paper_id} 卷 Agent 切题已接入女娲工作流。")
+            service_name = "Coze" if self._service_type == "coze" else "女娲"
+            self._set_note(paper_id, f"{paper_id} 卷 Agent 切题已接入 {service_name} 工作流。")
             return questions
 
-        self._set_note(paper_id, f"{paper_id} 卷女娲切题未返回可识别题目，已回退本地规则。")
+        service_name = "Coze" if self._service_type == "coze" else "女娲"
+        self._set_note(paper_id, f"{paper_id} 卷 {service_name} 切题未返回可识别题目，已回退本地规则。")
         return self.fallback_provider.split(stripped_text, paper_id, paper=paper)
 
     def _normalize_questions(self, response: Any, paper_id: str) -> list[Question]:

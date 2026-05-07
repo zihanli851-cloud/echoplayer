@@ -3,9 +3,11 @@ from difflib import SequenceMatcher
 from abc import ABC, abstractmethod
 import re
 import unicodedata
+from typing import Any
 
 from app.models.schemas import Question, SimilarityMatch, UploadedPaper
 from app.services.nuwa_service import NuwaService, NuwaServiceError
+from app.services.coze_service import CozeService, CozeServiceError
 from app.services.spellcheck.nuwa_provider import build_questions_data
 
 try:
@@ -110,20 +112,37 @@ class CodeSimilarityComparator(SimilarityComparatorProvider):
 
 
 class AgentSimilarityComparator(SimilarityComparatorProvider):
-    """Agent-side comparator that uses Nuwa history matches and local fallback."""
+    """Agent-side comparator that uses Coze/Nuwa history matches and local fallback."""
 
     provider_name = "agent_similarity_comparator"
-    provider_label = "Agent 版查重比对"
+    provider_label = "Coze 智能体查重比对"
     is_placeholder = False
     provider_note = ""
 
     def __init__(
         self,
         *,
+        coze_service: CozeService | None = None,
         nuwa_service: NuwaService | None = None,
         fallback_provider: SimilarityComparatorProvider | None = None,
     ) -> None:
-        self.nuwa_service = nuwa_service or NuwaService()
+        # 支持 Coze 或 Nuwa 服务
+        self._service: Any = None
+        self._service_type: str = ""
+        if coze_service is not None:
+            self._service = coze_service
+            self._service_type = "coze"
+        elif nuwa_service is not None:
+            self._service = nuwa_service
+            self._service_type = "nuwa"
+        else:
+            # 默认创建 CozeService
+            try:
+                self._service = CozeService()
+                self._service_type = "coze"
+            except CozeServiceError:
+                self._service = NuwaService()
+                self._service_type = "nuwa"
         self.fallback_provider = fallback_provider or CodeSimilarityComparator()
 
     def compare(
@@ -151,6 +170,7 @@ class AgentSimilarityComparator(SimilarityComparatorProvider):
         paper_by_id = {paper.paper_id: paper for paper in uploaded_papers or []}
         history_matches: list[SimilarityMatch] = []
         note_parts: list[str] = []
+        service_name = "Coze" if self._service_type == "coze" else "女娲"
 
         for paper_id, questions in (("A", paper_a_questions), ("B", paper_b_questions or [])):
             if not questions:
@@ -164,21 +184,24 @@ class AgentSimilarityComparator(SimilarityComparatorProvider):
 
             questions_data = build_questions_data(paper, questions)
             try:
-                response = self.nuwa_service.execute_compare_workflow(questions_data)
-            except NuwaServiceError as exc:
+                if self._service_type == "coze":
+                    response = self._service.execute_compare(questions_data)
+                else:
+                    response = self._service.execute_compare_workflow(questions_data)
+            except (CozeServiceError, NuwaServiceError) as exc:
                 history_matches.extend(local_history_by_paper.get(paper_id, []))
-                note_parts.append(f"{paper_id} 卷女娲智能对比调用失败，历史题库结果已回退本地规则：{exc}")
+                note_parts.append(f"{paper_id} 卷 {service_name} 智能对比调用失败，历史题库结果已回退本地规则：{exc}")
                 continue
 
             plagiarism_details = _find_first_list(response, "plagiarism_details")
             if plagiarism_details is None:
                 history_matches.extend(local_history_by_paper.get(paper_id, []))
-                note_parts.append(f"{paper_id} 卷女娲未返回 plagiarism_details，历史题库结果已回退本地规则。")
+                note_parts.append(f"{paper_id} 卷 {service_name} 未返回 plagiarism_details，历史题库结果已回退本地规则。")
                 continue
 
             parsed_matches = _parse_plagiarism_details(plagiarism_details, questions, paper_id)
             history_matches.extend(parsed_matches)
-            note_parts.append(f"{paper_id} 卷历史题库智能对比已接入女娲工作流。")
+            note_parts.append(f"{paper_id} 卷历史题库智能对比已接入 {service_name} 工作流。")
 
         note_parts.append("卷内与 A/B 交叉查重仍使用本地规则计算。")
         self.provider_note = "".join(note_parts)

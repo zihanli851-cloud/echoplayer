@@ -6,13 +6,13 @@ from fastapi.templating import Jinja2Templates
 
 from app.models.schemas import UploadedPaper
 from app.services.comparator import AgentSimilarityComparator, CodeSimilarityComparator
+from app.services.coze_service import CozeService
 from app.services.dual_run import DualRunReviewService, ReviewPipeline
-from app.services.nuwa_service import NuwaService
 from app.services.pdf_parser import AgentPdfParser, CodePdfParser, PdfParseError
 from app.services.question_splitter import AgentQuestionSplitter, RuleQuestionSplitter
 from app.services.report_builder import ReportBuilder
 from app.services.spellcheck.local_provider import LocalSpellcheckProvider
-from app.services.spellcheck.nuwa_provider import NuwaSpellcheckProvider
+from app.services.spellcheck.coze_provider import CozeSpellcheckProvider
 from app.utils.file_manager import cleanup_processing_dir, create_processing_dir, save_upload_file
 
 
@@ -168,7 +168,7 @@ async def review(
                     "load_error": str(exc),
                 }
 
-        nuwa_service = NuwaService()
+        coze_service = CozeService()
         dual_run_service = DualRunReviewService(
             code_pipeline=ReviewPipeline(
                 pipeline_name="代码版",
@@ -178,11 +178,11 @@ async def review(
                 spellcheck_provider=LocalSpellcheckProvider(),
             ),
             agent_pipeline=ReviewPipeline(
-                pipeline_name="Agent 版",
+                pipeline_name="Coze 智能体版",
                 extraction_provider=AgentPdfParser(),
-                split_provider=AgentQuestionSplitter(nuwa_service=nuwa_service),
-                compare_provider=AgentSimilarityComparator(nuwa_service=nuwa_service),
-                spellcheck_provider=NuwaSpellcheckProvider(nuwa_service=nuwa_service),
+                split_provider=AgentQuestionSplitter(coze_service=coze_service),
+                compare_provider=AgentSimilarityComparator(coze_service=coze_service),
+                spellcheck_provider=CozeSpellcheckProvider(coze_service=coze_service),
             ),
         )
         code_run_result, agent_run_result = dual_run_service.run(
