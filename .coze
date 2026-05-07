@@ -1,0 +1,19 @@
+[deploy]
+build = ["bash", "scripts/deploy_build.sh"]
+run = ["bash", "scripts/deploy_run.sh"]
+
+[deploy.profile]
+kind = "service"
+flavor = "agent"
+
+[project]
+sub_id = "78984c44"
+name = "echopaper"
+requires = ["python-3.11"]
+project_type = "backend"
+
+[preview]
+preview_enable = "disabled"
+
+[subprojects]
+path = ["."]
