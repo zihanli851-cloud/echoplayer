@@ -102,7 +102,6 @@ class CozeService:
         payload = {
             "workflow_id": resolved_workflow_id,
             "parameters": parameters,
-            "is_async": self.is_async,
         }
 
         try:
