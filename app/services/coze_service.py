@@ -168,7 +168,22 @@ class CozeService:
 
     def _extract_report(self, result: dict[str, Any]) -> Any:
         """提取智能审查报告（output_report）。"""
-        return self._extract_output(result, "output_report")
+        parsed = result.get("_parsed_data", {})
+        
+        # Coze 返回的新格式：{"content_type":1,"data":"{...}","type_for_model":2}
+        if isinstance(parsed, dict):
+            # 尝试从 content_type 格式中提取
+            if "data" in parsed and "content_type" in parsed:
+                inner_data = parsed.get("data", "{}")
+                if isinstance(inner_data, str):
+                    try:
+                        inner_parsed = json.loads(inner_data)
+                        return inner_parsed  # 返回 dashboard, error_checklist, plagiarism_details
+                    except (ValueError, TypeError):
+                        pass
+            # 旧格式：直接返回 output_report
+            return parsed.get("output_report", parsed)
+        return None
 
     def execute_split(
         self,
