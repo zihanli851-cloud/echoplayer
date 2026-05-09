@@ -16,6 +16,7 @@ htmlcov/
 data/temp_uploads/
 data/echopaper.db
 data/datasets/
+data/coze_exports/
 
 .DS_Store
 Thumbs.db

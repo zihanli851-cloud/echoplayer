@@ -1,4 +1,5 @@
 from pathlib import Path
+import time
 
 from fastapi.testclient import TestClient
 
@@ -193,6 +194,46 @@ def test_dual_run_service_executes_code_and_agent_pipelines() -> None:
     assert code_result.history_bank_summary["loaded_files"] == 1
 
 
+def test_dual_run_service_returns_code_result_when_agent_times_out() -> None:
+    class SlowSplitProvider(FakeSplitProvider):
+        def split(self, text: str, paper_id: str, *, paper=None) -> list[Question]:
+            time.sleep(0.2)
+            return super().split(text, paper_id, paper=paper)
+
+    uploaded_papers = [
+        UploadedPaper(
+            paper_id="A",
+            filename="a.pdf",
+            subject="chinese",
+            temp_path="a.pdf",
+        )
+    ]
+    dual_run_service = DualRunReviewService(
+        code_pipeline=ReviewPipeline(
+            pipeline_name="代码版",
+            extraction_provider=FakeExtractionProvider("1. 代码题目"),
+            split_provider=FakeSplitProvider(),
+            compare_provider=FakeCompareProvider(),
+            spellcheck_provider=FakeSpellcheckProvider(),
+        ),
+        agent_pipeline=ReviewPipeline(
+            pipeline_name="Agent 版",
+            extraction_provider=FakeExtractionProvider("1. Agent题目"),
+            split_provider=SlowSplitProvider(),
+            compare_provider=FakeCompareProvider(),
+            spellcheck_provider=FakeSpellcheckProvider(),
+        ),
+        agent_timeout=0.05,
+    )
+
+    code_result, agent_result = dual_run_service.run(uploaded_papers)
+
+    assert len(code_result.questions) == 1
+    assert agent_result.questions == []
+    assert agent_result.module_metadata["split"]["is_placeholder"] is True
+    assert "超过 0.05 秒未返回" in agent_result.module_metadata["split"]["provider_note"]
+
+
 def test_report_builder_marks_code_only_and_score_difference() -> None:
     report_builder = ReportBuilder()
 
@@ -304,6 +345,77 @@ def test_report_builder_marks_code_only_and_score_difference() -> None:
     assert context["spellcheck_rows"][0]["compare_status"] == "代码独有"
     assert context["duplicate_rows"][0]["compare_status"] == "评分不同"
     assert any(section["status"] == "Agent 未返回" for section in context["dual_run_sections"])
+
+
+def test_report_builder_shows_agent_errors_instead_of_matching_code_results() -> None:
+    report_builder = ReportBuilder()
+    uploaded_papers = [
+        UploadedPaper(
+            paper_id="A",
+            filename="a.pdf",
+            subject="语文",
+            temp_path="a.pdf",
+            text_content="1. 第一题",
+            page_count=1,
+        )
+    ]
+    questions = [
+        Question(
+            question_id="A-1",
+            paper_id="A",
+            question_no="1",
+            order=1,
+            content="第一题内容",
+            raw_block="第一题内容",
+        )
+    ]
+    report = report_builder.build_report(
+        teacher_name="李老师",
+        teacher_id="T001",
+        subject="语文",
+        uploaded_papers=uploaded_papers,
+        questions=questions,
+        similarity_matches=[],
+        spellcheck_issues=[],
+    )
+    code_run = PipelineRunResult(
+        pipeline_name="代码版",
+        uploaded_papers=uploaded_papers,
+        questions=questions,
+        similarity_matches=[],
+        spellcheck_issues=[],
+        module_metadata={
+            "extract": {"provider_note": "", "is_placeholder": False},
+            "split": {"provider_note": "", "is_placeholder": False},
+            "compare": {"provider_note": "", "is_placeholder": False},
+            "spellcheck": {"provider_note": "", "is_placeholder": False},
+        },
+    )
+    agent_run = PipelineRunResult(
+        pipeline_name="Agent 版",
+        uploaded_papers=uploaded_papers,
+        questions=[],
+        similarity_matches=[],
+        spellcheck_issues=[],
+        module_metadata={
+            "extract": {"provider_note": "", "is_placeholder": False},
+            "split": {"provider_note": "A 卷 Coze 切题调用失败：Coze 内部错误", "is_placeholder": True},
+            "compare": {"provider_note": "Coze 查重比对跳过：Agent 切题未返回可比对题目。", "is_placeholder": True},
+            "spellcheck": {"provider_note": "当前试卷未切分出题目，Coze 错字检查跳过。", "is_placeholder": True},
+        },
+    )
+
+    context = report_builder.build_template_context(
+        report,
+        code_run_result=code_run,
+        agent_run_result=agent_run,
+    )
+
+    sections = {section["module_name"]: section for section in context["dual_run_sections"]}
+    assert sections["切题"]["status"] == "Agent 未返回"
+    assert "Coze 切题调用失败" in sections["切题"]["diff_summary"]
+    assert sections["查重比对"]["status"] == "Agent 未返回"
+    assert "Coze 查重比对跳过" in sections["查重比对"]["diff_summary"]
 
 
 def test_review_route_renders_dual_run_report(monkeypatch) -> None:

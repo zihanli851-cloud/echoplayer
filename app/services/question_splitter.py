@@ -150,6 +150,7 @@ class AgentQuestionSplitter(QuestionSplitProvider):
 
         self.fallback_provider = fallback_provider or RuleQuestionSplitter()
         self._paper_notes: dict[str, str] = {}
+        self.is_placeholder = False
 
     def split(
         self,
@@ -167,21 +168,35 @@ class AgentQuestionSplitter(QuestionSplitProvider):
 
         try:
             if self._service_type == "coze":
-                response = self._service.execute_split(paper_payload)
+                response = self._service.execute_split(
+                    stripped_text,
+                    paper_id=paper_id,
+                    subject=paper.subject if paper else "",
+                    filename=paper.filename if paper else "",
+                )
             else:
                 response = self._service.execute_split_workflow(paper_payload)
         except (CozeServiceError, NuwaServiceError) as exc:
             service_name = "Coze" if self._service_type == "coze" else "女娲"
+            if self._service_type == "coze":
+                self.is_placeholder = True
+                self._set_note(paper_id, f"{paper_id} 卷 Coze 切题调用失败：{exc}")
+                return []
             self._set_note(paper_id, f"{paper_id} 卷 {service_name} 切题调用失败，已回退本地规则：{exc}")
             return self.fallback_provider.split(stripped_text, paper_id, paper=paper)
 
         questions = self._normalize_questions(response, paper_id)
         if questions:
+            self.is_placeholder = False
             service_name = "Coze" if self._service_type == "coze" else "女娲"
-            self._set_note(paper_id, f"{paper_id} 卷 Agent 切题已接入 {service_name} 工作流。")
+            self._set_note(paper_id, f"{paper_id} 卷 Agent 切题已接入{service_name}工作流。")
             return questions
 
         service_name = "Coze" if self._service_type == "coze" else "女娲"
+        if self._service_type == "coze":
+            self.is_placeholder = True
+            self._set_note(paper_id, f"{paper_id} 卷 Coze 切题未返回可识别题目。")
+            return []
         self._set_note(paper_id, f"{paper_id} 卷 {service_name} 切题未返回可识别题目，已回退本地规则。")
         return self.fallback_provider.split(stripped_text, paper_id, paper=paper)
 

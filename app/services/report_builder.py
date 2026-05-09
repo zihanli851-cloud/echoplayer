@@ -451,12 +451,22 @@ class ReportBuilder:
     ) -> DualRunSectionComparison:
         """Compare module-level splitting output between code and Agent pipelines."""
 
-        code_result = self._question_summary(code_run_result.questions)
-        agent_result = self._question_summary(agent_run_result.questions)
+        code_result = self._question_summary(
+            code_run_result.questions,
+            uploaded_papers=code_run_result.uploaded_papers,
+        )
+        agent_result = self._question_summary(
+            agent_run_result.questions,
+            uploaded_papers=code_run_result.uploaded_papers,
+        )
         status = "一致" if code_result == agent_result else "存在差异"
         diff_summary = "两边切题结果一致。"
-        provider_note = agent_run_result.module_metadata["split"].get("provider_note", "")
-        if status != "一致":
+        agent_metadata = agent_run_result.module_metadata["split"]
+        provider_note = agent_metadata.get("provider_note", "")
+        if agent_metadata.get("is_placeholder"):
+            status = "Agent 未返回"
+            diff_summary = provider_note or "Agent 切题未返回结果。"
+        elif status != "一致":
             diff_summary = "两边切题数量或题号集合不同。"
         elif provider_note:
             diff_summary = f"{diff_summary}{provider_note}"
@@ -480,8 +490,12 @@ class ReportBuilder:
         agent_result = self._duplicate_summary(agent_run_result.similarity_matches)
         status = "一致" if code_result == agent_result else "存在差异"
         diff_summary = "两边重复题目统计一致。"
-        provider_note = agent_run_result.module_metadata["compare"].get("provider_note", "")
-        if status != "一致":
+        agent_metadata = agent_run_result.module_metadata["compare"]
+        provider_note = agent_metadata.get("provider_note", "")
+        if agent_metadata.get("is_placeholder"):
+            status = "Agent 未返回"
+            diff_summary = provider_note or "Agent 查重比对未返回结果。"
+        elif status != "一致":
             diff_summary = "两边重复题目数量或等级分布不同。"
         elif provider_note:
             diff_summary = f"{diff_summary}{provider_note}"
@@ -520,10 +534,12 @@ class ReportBuilder:
             diff_summary=diff_summary,
         )
 
-    def _question_summary(self, questions) -> dict:
+    def _question_summary(self, questions, *, uploaded_papers=None) -> dict:
         """Summarize question counts and question numbers by paper."""
 
         summary: dict[str, dict] = {}
+        for paper in uploaded_papers or []:
+            summary.setdefault(paper.paper_id, {"count": 0, "question_nos": []})
         for question in questions:
             paper_summary = summary.setdefault(question.paper_id, {"count": 0, "question_nos": []})
             paper_summary["count"] += 1

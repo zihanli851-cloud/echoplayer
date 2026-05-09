@@ -6,6 +6,9 @@ Coze 智能体驱动的错别字检查 Provider
 
 from __future__ import annotations
 
+import json
+import re
+from typing import Any
 from uuid import uuid4
 
 from app.models.schemas import Question, SpellcheckIssue, UploadedPaper
@@ -47,6 +50,7 @@ class CozeSpellcheckProvider(SpellcheckProvider):
     ) -> None:
         self.coze_service = coze_service or CozeService()
         self.fallback_provider = fallback_provider or LocalSpellcheckProvider()
+        self.is_placeholder = False
 
     def check_questions(
         self,
@@ -56,6 +60,7 @@ class CozeSpellcheckProvider(SpellcheckProvider):
         """Run the Coze spellcheck workflow and normalize results."""
 
         if not questions:
+            self.is_placeholder = True
             self.provider_note = "当前试卷未切分出题目，Coze 错字检查跳过。"
             return []
 
@@ -63,8 +68,9 @@ class CozeSpellcheckProvider(SpellcheckProvider):
         try:
             response = self.coze_service.execute_spellcheck(questions_data)
         except CozeServiceError as exc:
-            self.provider_note = f"Coze 错字工作流调用失败，已回退本地规则：{exc}"
-            return self.fallback_provider.check_questions(paper, questions)
+            self.is_placeholder = True
+            self.provider_note = f"Coze 错字工作流调用失败：{exc}"
+            return []
 
         # 从响应中提取 error_checklist
         error_checklist = _find_first_list(response, "error_checklist")
@@ -74,10 +80,12 @@ class CozeSpellcheckProvider(SpellcheckProvider):
             if error_checklist is None:
                 error_checklist = _find_first_list(response, "mistakes")
                 if error_checklist is None:
-                    self.provider_note = "Coze 错字工作流未返回 error_checklist，已回退本地规则。"
-                    return self.fallback_provider.check_questions(paper, questions)
+                    self.is_placeholder = True
+                    self.provider_note = "Coze 错字工作流未返回 error_checklist。"
+                    return []
 
         issues = self._normalize_issues(error_checklist, paper, questions)
+        self.is_placeholder = False
         self.provider_note = "Coze 智能体错字检查已接入。"
         return issues
 
@@ -132,6 +140,12 @@ class CozeSpellcheckProvider(SpellcheckProvider):
 
 def _find_first_list(data: Any, key: str) -> list | None:
     """Recursively find a list value by key in nested dict/list structures."""
+    if isinstance(data, str):
+        parsed = _parse_json_value(data)
+        if parsed is not None:
+            return _find_first_list(parsed, key)
+        return None
+
     if isinstance(data, dict):
         for k, v in data.items():
             if k == key and isinstance(v, list):
@@ -145,3 +159,32 @@ def _find_first_list(data: Any, key: str) -> list | None:
             if result is not None:
                 return result
     return None
+
+
+def _parse_json_value(value: str) -> Any | None:
+    stripped = value.strip()
+    if not stripped:
+        return None
+    if stripped.startswith("```"):
+        stripped = re.sub(r"^```(?:json)?\s*", "", stripped)
+        stripped = re.sub(r"\s*```$", "", stripped)
+    try:
+        return json.loads(stripped)
+    except ValueError:
+        return None
+
+
+class SkippedCozeSpellcheckProvider(SpellcheckProvider):
+    """Spellcheck placeholder used when the Coze spellcheck workflow is disabled."""
+
+    provider_name = "skipped_coze_spellcheck_provider"
+    provider_label = "Coze 智能体错字检查"
+    is_placeholder = True
+    provider_note = "Coze 错字工作流暂未启用；当前仅运行 Agent 切题。"
+
+    def check_questions(
+        self,
+        paper: UploadedPaper,
+        questions: list[Question],
+    ) -> list[SpellcheckIssue]:
+        return []

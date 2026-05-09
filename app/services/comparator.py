@@ -1,6 +1,7 @@
 from itertools import combinations
 from difflib import SequenceMatcher
 from abc import ABC, abstractmethod
+import json
 import re
 import unicodedata
 from typing import Any
@@ -144,6 +145,7 @@ class AgentSimilarityComparator(SimilarityComparatorProvider):
                 self._service = NuwaService()
                 self._service_type = "nuwa"
         self.fallback_provider = fallback_provider or CodeSimilarityComparator()
+        self.is_placeholder = False
 
     def compare(
         self,
@@ -159,6 +161,10 @@ class AgentSimilarityComparator(SimilarityComparatorProvider):
             history_questions,
             uploaded_papers=uploaded_papers,
         )
+        if self._service_type == "coze" and not paper_a_questions and not paper_b_questions:
+            self.is_placeholder = True
+            self.provider_note = "Coze 查重比对跳过：Agent 切题未返回可比对题目。"
+            return []
         local_non_history = [
             match for match in local_matches if match.comparison_type != "history_bank"
         ]
@@ -189,28 +195,63 @@ class AgentSimilarityComparator(SimilarityComparatorProvider):
                 else:
                     response = self._service.execute_compare_workflow(questions_data)
             except (CozeServiceError, NuwaServiceError) as exc:
+                if self._service_type == "coze":
+                    self.is_placeholder = True
+                    self.provider_note = f"{paper_id} 卷 Coze 智能对比调用失败：{exc}"
+                    return []
                 history_matches.extend(local_history_by_paper.get(paper_id, []))
                 note_parts.append(f"{paper_id} 卷 {service_name} 智能对比调用失败，历史题库结果已回退本地规则：{exc}")
                 continue
 
             plagiarism_details = _find_first_list(response, "plagiarism_details")
             if plagiarism_details is None:
+                if self._service_type == "coze":
+                    self.is_placeholder = True
+                    self.provider_note = f"{paper_id} 卷 Coze 未返回 plagiarism_details。"
+                    return []
                 history_matches.extend(local_history_by_paper.get(paper_id, []))
                 note_parts.append(f"{paper_id} 卷 {service_name} 未返回 plagiarism_details，历史题库结果已回退本地规则。")
                 continue
 
-            parsed_matches = _parse_plagiarism_details(plagiarism_details, questions, paper_id)
+            target_label = "Coze 知识库" if self._service_type == "coze" else "女娲知识库"
+            parsed_matches = _parse_plagiarism_details(
+                plagiarism_details,
+                questions,
+                paper_id,
+                target_label=target_label,
+                match_source=self._service_type,
+            )
             history_matches.extend(parsed_matches)
-            note_parts.append(f"{paper_id} 卷历史题库智能对比已接入 {service_name} 工作流。")
+            note_parts.append(f"{paper_id} 卷历史题库智能对比已接入{service_name}工作流。")
 
         note_parts.append("卷内与 A/B 交叉查重仍使用本地规则计算。")
         self.provider_note = "".join(note_parts)
+        self.is_placeholder = False
 
         return sorted(
             [*local_non_history, *history_matches],
             key=lambda item: item.similarity_score,
             reverse=True,
         )
+
+
+class SkippedAgentSimilarityComparator(SimilarityComparatorProvider):
+    """Agent comparator placeholder used when the Coze compare workflow is disabled."""
+
+    provider_name = "skipped_agent_similarity_comparator"
+    provider_label = "Coze 智能体查重比对"
+    is_placeholder = True
+    provider_note = "Coze 查重工作流暂未启用；当前仅运行 Agent 切题。"
+
+    def compare(
+        self,
+        paper_a_questions: list[Question],
+        paper_b_questions: list[Question] | None = None,
+        history_questions: list[Question] | None = None,
+        *,
+        uploaded_papers: list[UploadedPaper] | None = None,
+    ) -> list[SimilarityMatch]:
+        return []
 
 
 def normalize_for_compare(text: str) -> str:
@@ -338,6 +379,12 @@ def compare_against_history_bank(
 
 
 def _find_first_list(value, target_key: str):
+    if isinstance(value, str):
+        parsed = _parse_json_value(value)
+        if parsed is not None:
+            return _find_first_list(parsed, target_key)
+        return None
+
     if isinstance(value, dict):
         for key, child in value.items():
             if key == target_key and isinstance(child, list):
@@ -353,15 +400,34 @@ def _find_first_list(value, target_key: str):
     return None
 
 
+def _parse_json_value(value: str):
+    stripped = value.strip()
+    if not stripped:
+        return None
+    if stripped.startswith("```"):
+        stripped = re.sub(r"^```(?:json)?\s*", "", stripped)
+        stripped = re.sub(r"\s*```$", "", stripped)
+    try:
+        return json.loads(stripped)
+    except ValueError:
+        return None
+
+
 def _parse_plagiarism_details(
     plagiarism_details: list,
     questions: list[Question],
     paper_id: str,
+    *,
+    target_label: str = "历史知识库",
+    match_source: str = "agent",
 ) -> list[SimilarityMatch]:
     question_by_no = {question.question_no: question for question in questions}
     matches: list[SimilarityMatch] = []
 
     for index, item in enumerate(plagiarism_details, start=1):
+        if isinstance(item, str):
+            parsed_item = _parse_json_value(item)
+            item = parsed_item if isinstance(parsed_item, dict) else item
         if not isinstance(item, dict):
             continue
 
@@ -382,7 +448,7 @@ def _parse_plagiarism_details(
         score = _parse_similarity_level(item.get("similarity_level"))
         matches.append(
             SimilarityMatch(
-                match_id=f"history_bank-{source_question.question_id}-nuwa-{index}",
+                match_id=f"history_bank-{source_question.question_id}-{match_source}-{index}",
                 comparison_type="history_bank",
                 source_paper_id=paper_id,
                 source_paper_label=paper_id,
@@ -390,7 +456,7 @@ def _parse_plagiarism_details(
                 source_question_no=source_question.question_no,
                 source_text=source_question.content,
                 target_paper_id="H",
-                target_paper_label="女娲知识库",
+                target_paper_label=target_label,
                 target_question_id=f"H-{paper_id}-{index}",
                 target_question_no=str(index),
                 target_text=matched_historical_question,

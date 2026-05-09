@@ -211,7 +211,7 @@
       <section class="card">
         <p class="eyebrow">EchoPaper / 试卷智能审查系统</p>
         <h1>试卷上传与智能审查</h1>
-        <p>上传 A/B 卷 PDF 后，系统会在同一次请求里同时运行代码版与 Agent 版能力链路，主视图展示代码版结果，并提供 Agent 对照结果。</p>
+        <p>上传 A/B 卷 PDF 后，系统会在同一次请求里同时运行代码版与 Agent 版能力链路；如果 Coze 返回错误，报告会显示具体错误说明。</p>
 
         {% if message %}
         <div class="notice {{ message_type }}">{{ message }}</div>
@@ -272,8 +272,8 @@
             <li>接收教师信息与试卷文件，并完成 PDF 校验</li>
             <li>使用统一上传流程保存 PDF，并在同一次请求中双跑代码版 / Agent 版能力</li>
             <li>完成文本提取、基础切题、查重和错字检查</li>
-            <li>Agent 链路会直接把本地解析后的题目 JSON 传给女娲工作流</li>
-            <li>生成代码主视图报告，并展示 Agent 对照摘要与差异</li>
+            <li>Agent 链路会直接把本地解析后的题目 JSON 传给 Coze 工作流</li>
+            <li>生成代码主视图报告，并展示 Agent 对照摘要、差异或 Coze 错误</li>
           </ul>
         </section>
 

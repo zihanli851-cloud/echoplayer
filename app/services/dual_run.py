@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor, TimeoutError
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -104,9 +105,16 @@ class ReviewPipeline:
 class DualRunReviewService:
     """Executes the code pipeline and Agent pipeline within the same request."""
 
-    def __init__(self, *, code_pipeline: ReviewPipeline, agent_pipeline: ReviewPipeline) -> None:
+    def __init__(
+        self,
+        *,
+        code_pipeline: ReviewPipeline,
+        agent_pipeline: ReviewPipeline,
+        agent_timeout: float | None = None,
+    ) -> None:
         self.code_pipeline = code_pipeline
         self.agent_pipeline = agent_pipeline
+        self.agent_timeout = agent_timeout
 
     def run(
         self,
@@ -122,6 +130,35 @@ class DualRunReviewService:
             history_questions=history_questions,
             history_bank_summary=history_bank_summary,
         )
+        if self.agent_timeout is not None and self.agent_timeout > 0:
+            executor = ThreadPoolExecutor(max_workers=1)
+            future = executor.submit(
+                self.agent_pipeline.run,
+                uploaded_papers,
+                history_questions=history_questions,
+                history_bank_summary=history_bank_summary,
+            )
+            try:
+                agent_result = future.result(timeout=self.agent_timeout)
+            except TimeoutError:
+                future.cancel()
+                agent_result = _agent_error_result(
+                    self.agent_pipeline.pipeline_name,
+                    code_result.uploaded_papers,
+                    history_bank_summary=history_bank_summary,
+                    message=f"Agent 链路超过 {self.agent_timeout:g} 秒未返回，已停止等待。请检查 Coze 工作流耗时或调低题目数量。",
+                )
+            except Exception as exc:
+                agent_result = _agent_error_result(
+                    self.agent_pipeline.pipeline_name,
+                    code_result.uploaded_papers,
+                    history_bank_summary=history_bank_summary,
+                    message=f"Agent 链路运行失败：{exc}",
+                )
+            finally:
+                executor.shutdown(wait=False, cancel_futures=True)
+            return code_result, agent_result
+
         agent_result = self.agent_pipeline.run(
             uploaded_papers,
             history_questions=history_questions,
@@ -138,4 +175,42 @@ def _provider_metadata(provider) -> dict:
         "provider_label": getattr(provider, "provider_label", provider.__class__.__name__),
         "is_placeholder": bool(getattr(provider, "is_placeholder", False)),
         "provider_note": getattr(provider, "provider_note", ""),
+    }
+
+
+def _agent_error_result(
+    pipeline_name: str,
+    uploaded_papers: list[UploadedPaper],
+    *,
+    history_bank_summary: dict | None = None,
+    message: str,
+) -> PipelineRunResult:
+    module_metadata = {
+        "extract": {
+            "provider_name": "agent_pdf_parser",
+            "provider_label": "Agent 版文本解析",
+            "is_placeholder": False,
+            "provider_note": f"Agent 流程复用本地 PDF 解析；后续 Coze 链路未完成：{message}",
+        },
+        "split": _error_metadata("Coze 智能体切题", message),
+        "compare": _error_metadata("Coze 智能体查重比对", message),
+        "spellcheck": _error_metadata("Coze 智能体错字检查", message),
+    }
+    return PipelineRunResult(
+        pipeline_name=pipeline_name,
+        uploaded_papers=[paper.model_copy(deep=True) for paper in uploaded_papers],
+        questions=[],
+        similarity_matches=[],
+        spellcheck_issues=[],
+        module_metadata=module_metadata,
+        history_bank_summary=history_bank_summary or {},
+    )
+
+
+def _error_metadata(provider_label: str, message: str) -> dict:
+    return {
+        "provider_name": "agent_error",
+        "provider_label": provider_label,
+        "is_placeholder": True,
+        "provider_note": message,
     }

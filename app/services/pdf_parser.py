@@ -36,14 +36,14 @@ class AgentPdfParser(TextExtractionProvider):
     """
     Agent-side PDF parser.
 
-    The Nuwa workflow chain still relies on local PDF text extraction first,
+    The Coze workflow chain still relies on local PDF text extraction first,
     so the Agent pipeline intentionally reuses the same parser implementation.
     """
 
     provider_name = "agent_pdf_parser"
     provider_label = "Agent 版文本解析"
     is_placeholder = False
-    provider_note = "Agent 流程先复用本地 PDF 解析，再调用女娲工作流。"
+    provider_note = "Agent 流程先复用本地 PDF 解析，再调用 Coze 工作流。"
 
     def __init__(self, fallback_provider: TextExtractionProvider | None = None) -> None:
         self.fallback_provider = fallback_provider or CodePdfParser()

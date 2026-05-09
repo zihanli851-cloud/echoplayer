@@ -1,18 +1,26 @@
 from pathlib import Path
+import os
 
 from fastapi import APIRouter, File, Form, Request, UploadFile
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
 from app.models.schemas import UploadedPaper
-from app.services.comparator import AgentSimilarityComparator, CodeSimilarityComparator
+from app.services.comparator import (
+    AgentSimilarityComparator,
+    CodeSimilarityComparator,
+    SkippedAgentSimilarityComparator,
+)
 from app.services.coze_service import CozeService
 from app.services.dual_run import DualRunReviewService, ReviewPipeline
 from app.services.pdf_parser import AgentPdfParser, CodePdfParser, PdfParseError
 from app.services.question_splitter import AgentQuestionSplitter, RuleQuestionSplitter
 from app.services.report_builder import ReportBuilder
 from app.services.spellcheck.local_provider import LocalSpellcheckProvider
-from app.services.spellcheck.coze_provider import CozeSpellcheckProvider
+from app.services.spellcheck.coze_provider import (
+    CozeSpellcheckProvider,
+    SkippedCozeSpellcheckProvider,
+)
 from app.utils.file_manager import cleanup_processing_dir, create_processing_dir, save_upload_file
 
 
@@ -31,6 +39,25 @@ SUBJECT_OPTIONS = [
     ("history", "历史"),
     ("geography", "地理"),
 ]
+
+DEFAULT_AGENT_TIMEOUT = 20.0
+
+
+def get_agent_timeout() -> float:
+    raw_value = os.getenv("AGENT_TIMEOUT", "").strip()
+    if not raw_value:
+        return DEFAULT_AGENT_TIMEOUT
+    try:
+        return max(1.0, float(raw_value))
+    except ValueError:
+        return DEFAULT_AGENT_TIMEOUT
+
+
+def is_enabled_env(name: str, *, default: bool) -> bool:
+    raw_value = os.getenv(name, "").strip().lower()
+    if not raw_value:
+        return default
+    return raw_value in {"1", "true", "yes", "on", "enabled"}
 
 
 def is_pdf_file(upload: UploadFile | None) -> bool:
@@ -168,7 +195,10 @@ async def review(
                     "load_error": str(exc),
                 }
 
-        coze_service = CozeService()
+        agent_timeout = get_agent_timeout()
+        coze_service = CozeService(timeout=agent_timeout)
+        enable_agent_compare = is_enabled_env("ENABLE_AGENT_COMPARE", default=False)
+        enable_agent_spellcheck = is_enabled_env("ENABLE_AGENT_SPELLCHECK", default=False)
         dual_run_service = DualRunReviewService(
             code_pipeline=ReviewPipeline(
                 pipeline_name="代码版",
@@ -181,9 +211,18 @@ async def review(
                 pipeline_name="Coze 智能体版",
                 extraction_provider=AgentPdfParser(),
                 split_provider=AgentQuestionSplitter(coze_service=coze_service),
-                compare_provider=AgentSimilarityComparator(coze_service=coze_service),
-                spellcheck_provider=CozeSpellcheckProvider(coze_service=coze_service),
+                compare_provider=(
+                    AgentSimilarityComparator(coze_service=coze_service)
+                    if enable_agent_compare
+                    else SkippedAgentSimilarityComparator()
+                ),
+                spellcheck_provider=(
+                    CozeSpellcheckProvider(coze_service=coze_service)
+                    if enable_agent_spellcheck
+                    else SkippedCozeSpellcheckProvider()
+                ),
             ),
+            agent_timeout=agent_timeout,
         )
         code_run_result, agent_run_result = dual_run_service.run(
             uploaded_papers,

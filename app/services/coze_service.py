@@ -90,7 +90,14 @@ class CozeService:
         if not self.bot_token:
             raise CozeServiceError("未配置 COZE_BOT_TOKEN。")
 
-        cache_key = json.dumps(parameters, ensure_ascii=False, sort_keys=True)
+        cache_key = json.dumps(
+            {
+                "workflow_id": resolved_workflow_id,
+                "parameters": parameters,
+            },
+            ensure_ascii=False,
+            sort_keys=True,
+        )
         if cache_key in self._cache:
             return deepcopy(self._cache[cache_key])
 
@@ -168,10 +175,18 @@ class CozeService:
         paper_content: str,
         *,
         paper_id: str = "unknown",
+        subject: str = "",
+        filename: str = "",
     ) -> dict[str, Any]:
         """执行切题工作流。"""
         parameters = {
-            "paper_text_data": {"content": paper_content, "paper_id": paper_id},
+            "paper_text_data": {
+                "content": paper_content,
+                "text_content": paper_content,
+                "paper_id": paper_id,
+                "subject": subject,
+                "filename": filename,
+            },
         }
         return self.execute_workflow(parameters, workflow_id=self.split_workflow_id)
 
