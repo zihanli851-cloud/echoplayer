@@ -1,0 +1,11 @@
+type: Workflow
+version: 1.0.0
+main:
+    id: 7637135521890959375
+    name: zhinengduibi
+    desc: 错别字与语法校验&&智能对比和查重
+    icon: plugin_icon/workflow.png
+    version: ""
+    flowMode: 0
+    commitId: ""
+sub: []

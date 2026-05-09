@@ -1,0 +1,685 @@
+schema_version: 1.0.0
+name: zhinengduibi
+id: 7637135521890959375
+description: "错别字与语法校验&&智能对比和查重"
+mode: workflow
+icon: plugin_icon/workflow.png
+nodes:
+    - id: "100001"
+      type: start
+      title: 开始
+      icon: https://lf3-static.bytednsdoc.com/obj/eden-cn/dvsmryvd_avi_dvsm/ljhwZthlaukjlkulzlp/icon/icon-Start-v2.jpg
+      description: "工作流的起始节点，用于设定启动工作流需要的信息"
+      position:
+        x: 180
+        y: 164.14999999999995
+      parameters:
+        node_outputs:
+            question_data:
+                type: object
+                required: true
+                value: null
+    - id: "900001"
+      type: end
+      title: 结束
+      icon: https://lf3-static.bytednsdoc.com/obj/eden-cn/dvsmryvd_avi_dvsm/ljhwZthlaukjlkulzlp/icon/icon-End-v2.jpg
+      description: "工作流的最终节点，用于返回工作流运行后的结果信息"
+      position:
+        x: 2020
+        y: 151.14999999999995
+      parameters:
+        node_inputs:
+            - name: output_report
+              input:
+                type: object
+                value:
+                    path: output_report
+                    ref_node: "114761"
+        terminatePlan: returnVariables
+    - id: "123238"
+      type: code
+      title: 提取题目数组
+      icon: https://lf3-static.bytednsdoc.com/obj/eden-cn/dvsmryvd_avi_dvsm/ljhwZthlaukjlkulzlp/icon/icon-Code-v2.jpg
+      description: "编写代码，处理输入变量来生成返回值"
+      version: v2
+      position:
+        x: 640
+        y: 276.30000000000007
+      parameters:
+        code: |-
+            function main(args) {
+                let data = args.raw_data;
+                // 防御性编程：提取 questions 数组，如果找不到就给个空数组防止崩溃
+                let arr = (data && data.questions) ? data.questions : [];
+                return {
+                    question_list: arr
+                };
+            }
+        language: 5
+        node_inputs:
+            - name: raw_data
+              input:
+                value:
+                    path: question_data
+                    ref_node: "100001"
+        node_outputs:
+            question_list:
+                type: list
+                items:
+                    type: object
+                    value: null
+                value: null
+        settingOnError:
+            processType: 1
+            retryTimes: 0
+            switch: false
+            timeoutMs: 60000
+    - id: "100170"
+      type: loop
+      title: 循环
+      icon: https://lf3-static.bytednsdoc.com/obj/eden-cn/dvsmryvd_avi_dvsm/ljhwZthlaukjlkulzlp/icon/icon-Loop-v2.jpg
+      description: "用于通过设定循环次数和逻辑，重复执行一系列任务"
+      position:
+        x: 1100
+        y: 263.30000000000007
+      canvas_position:
+        x: 1100
+        y: 500.6
+      parameters:
+        loopCount:
+            type: integer
+            value:
+                content: 10
+                rawMeta:
+                    type: 2
+                type: literal
+        loopType: array
+        node_inputs:
+            - name: input
+              input:
+                value:
+                    path: question_list
+                    ref_node: "123238"
+        node_outputs:
+            single_check_result:
+                value:
+                    type: list
+                    items:
+                        type: string
+                        value: null
+                    value:
+                        path: reasoning_content
+                        ref_node: "161200"
+        variableParameters:
+            - name: item
+              input:
+                value:
+                    path: question_list
+                    ref_node: "123238"
+      nodes:
+        - id: "161200"
+          type: llm
+          title: 智能对比和查重
+          icon: https://lf3-static.bytednsdoc.com/obj/eden-cn/dvsmryvd_avi_dvsm/ljhwZthlaukjlkulzlp/icon/icon-LLM-v2.jpg
+          description: "调用大语言模型,使用变量和提示词生成回复"
+          version: "3"
+          position:
+            x: 719.9959472656251
+            y: 100
+          parameters:
+            fcParam:
+                llmNodeUID: "7637144189923655731"
+                pluginFCParam:
+                    pluginList:
+                        - api_id: "7407644410588151819"
+                          api_name: imgUnderstand
+                          is_draft: false
+                          plugin_id: "7379227414322217010"
+                          plugin_version: ""
+                        - api_id: "7379227817307029513"
+                          api_name: LinkReaderPlugin
+                          is_draft: false
+                          plugin_id: "7379227817307013129"
+                          plugin_version: ""
+                        - api_id: "7405805158996934683"
+                          api_name: read
+                          is_draft: false
+                          plugin_id: "7405805158996918299"
+                          plugin_version: ""
+                spaceID: "7562883982673887259"
+                workflowVersion: ""
+            fcParamVar:
+                knowledgeFCParam: {}
+            llmParam:
+                - name: apiMode
+                  input:
+                    type: integer
+                    value: "0"
+                - name: frequencyPenalty
+                  input:
+                    type: float
+                    value: "0"
+                - name: maxTokens
+                  input:
+                    type: integer
+                    value: "4096"
+                - name: spCurrentTime
+                  input:
+                    type: boolean
+                    value: false
+                - name: spAntiLeak
+                  input:
+                    type: boolean
+                    value: false
+                - name: thinkingType
+                  input:
+                    type: string
+                    value: enabled
+                - name: responseFormat
+                  input:
+                    type: integer
+                    value: "2"
+                - name: modelName
+                  input:
+                    type: string
+                    value: 豆包·2.0·pro
+                - name: modelType
+                  input:
+                    type: integer
+                    value: "1772700462"
+                - name: generationDiversity
+                  input:
+                    type: string
+                    value: balance
+                - name: parameters
+                  input:
+                    type: object
+                    properties:
+                        max_completion_tokens:
+                            type: integer
+                            value: "0"
+                        reasoning_effort:
+                            type: string
+                            value: medium
+                    value: null
+                - name: prompt
+                  input:
+                    type: string
+                    value: |+
+                        当前题号：{{item.question_no}}
+
+                        当前题目：{{current_question}}
+
+                        历史召回题目参考：{{history_questions}}
+
+                        请评估并输出结果。
+
+                - name: enableChatHistory
+                  input:
+                    type: boolean
+                    value: false
+                - name: chatHistoryRound
+                  input:
+                    type: integer
+                    value: "3"
+                - name: systemPrompt
+                  input:
+                    type: string
+                    value: |+
+                        # Role
+
+                        你是一个精准的试卷查重算法核心。
+
+                        # Task
+
+                        比较【当前题目】与【历史知识库召回题目】的相似度，判断是否为原题或改编题。
+
+                        # Output Constraint (严格遵守)
+
+                        你必须严格按照预设的 JSON 格式输出，绝不能包含任何解释性文字或 Markdown 标记。
+
+                        # 字段提取规则：
+
+                        1. "question_number": 必须是整数（Integer），直接填入当前题目的题号数字。
+
+                        2. "similarity_level": 评估一个相似度字符串，如 "90%-95%"。如果未命中历史题目或极其不相关，必须输出 "0%"。
+
+                        3. "matched_historical_question": 如果命中，原样提取召回的题目文本；如果未命中，填 "" (空字符串)。
+
+                        4. "diff_highlight": 如果相似度大于0%，简短说明差异（如"数字改变"）；如果未命中，填 "" (空字符串)。
+
+                - name: stableSystemPrompt
+                  input:
+                    type: string
+                    value: ""
+                - name: canContinue
+                  input:
+                    type: boolean
+                    value: true
+                - name: loopPromptVersion
+                  input:
+                    type: string
+                    value: ""
+                - name: loopPromptName
+                  input:
+                    type: string
+                    value: ""
+                - name: loopPromptId
+                  input:
+                    type: string
+                    value: ""
+            node_inputs:
+                - name: current_question
+                  input:
+                    type: object
+                    value:
+                        path: input
+                        ref_node: "100170"
+                - name: kb_history
+                  input:
+                    type: list
+                    items:
+                        type: object
+                        properties:
+                            documentId:
+                                type: string
+                                value: null
+                            output:
+                                type: string
+                                value: null
+                        value: null
+                    value:
+                        path: outputList
+                        ref_node: "168745"
+            node_outputs:
+                plagiarism_report:
+                    type: list
+                    items:
+                        type: object
+                        properties:
+                            diff_highlight:
+                                type: string
+                                value: null
+                            matched_historical_q:
+                                type: string
+                                value: null
+                            question_number:
+                                type: integer
+                                value: null
+                            similarity_level:
+                                type: string
+                                value: null
+                        value: null
+                    value: null
+                reasoning_content:
+                    type: string
+                    value: null
+            settingOnError:
+                ext:
+                    backupLLmParam: '{"apiMode":0,"temperature":1,"topP":0.7,"maxTokens":4096,"spCurrentTime":false,"spAntiLeak":false,"thinkingType":"enabled","responseFormat":2,"modelName":"GLM-4.7","modelType":1770353934,"generationDiversity":"default_val","parameters":{"max_completion_tokens":"0"}}'
+                processType: 1
+                retryTimes: 3
+                switch: false
+                timeoutMs: 180000
+        - id: "168745"
+          type: knowledge
+          title: 知识库检索
+          icon: https://lf3-static.bytednsdoc.com/obj/eden-cn/dvsmryvd_avi_dvsm/ljhwZthlaukjlkulzlp/icon/icon-KnowledgeQuery-v2.jpg
+          description: "在选定的知识中,根据输入变量召回最匹配的信息,并以列表形式返回"
+          position:
+            x: -70.00405273437491
+            y: 123.72562308571105
+          parameters:
+            datasetParam:
+                - name: datasetList
+                  input:
+                    type: list
+                    items:
+                        type: string
+                        value: null
+                    value:
+                        - "7637138176842973210"
+                - name: topK
+                  input:
+                    type: integer
+                    value: "5"
+                - name: useRerank
+                  input:
+                    type: boolean
+                    value: true
+                - name: useRewrite
+                  input:
+                    type: boolean
+                    value: true
+                - name: isPersonalOnly
+                  input:
+                    type: boolean
+                    value: true
+                - name: datasetType
+                  input:
+                    type: integer
+                    value: "0"
+                - name: VolcanoInfoList
+                  input:
+                    type: list
+                    items:
+                        type: object
+                        value: null
+                    value: []
+                - name: minScore
+                  input:
+                    type: float
+                    value: "0.5"
+                - name: strategy
+                  input:
+                    type: integer
+                    value: "1"
+            node_inputs:
+                - name: Query
+                  input:
+                    type: string
+                    value:
+                        path: input
+                        ref_node: "100170"
+                - name: enableChatHistory
+                  input:
+                    type: boolean
+                    value: false
+                - name: chatHistoryRound
+                  input:
+                    type: float
+                    value: 3
+            node_outputs:
+                outputList:
+                    type: list
+                    items:
+                        type: object
+                        properties:
+                            documentId:
+                                type: string
+                                value: null
+                            output:
+                                type: string
+                                value: null
+                        value: null
+                    value: null
+      edges:
+        - source_node: "168745"
+          target_node: "161200"
+        - source_node: "161200"
+          target_node: "100170"
+          target_port: loop-function-inline-input
+        - source_node: "100170"
+          target_node: "168745"
+          source_port: loop-function-inline-output
+    - id: "114761"
+      type: code
+      title: 整合
+      icon: https://lf3-static.bytednsdoc.com/obj/eden-cn/dvsmryvd_avi_dvsm/ljhwZthlaukjlkulzlp/icon/icon-Code-v2.jpg
+      description: "编写代码，处理输入变量来生成返回值"
+      version: v2
+      position:
+        x: 1536.2709586363908
+        y: 138.14999999999992
+      parameters:
+        code: |-
+            export default async function main(args) {
+                // 1. 获取传入的数据，并进行空值保护（防止上游节点没传数据导致报错）
+                const errors = args.error_data || [];
+                const plagiarisms = args.plagiarism_data || [];
+
+                // 2. 计算宏观查重率 (Dashboard 数据)
+                let totalQuestions = plagiarisms.length;
+                let highSimCount = 0;
+
+                // 遍历查重结果，统计被判定为原题的数量 ("100%" 和 "90%-95%")
+                plagiarisms.forEach(item => {
+                    if (item && (item.similarity_level === "100%" || item.similarity_level === "90%-95%")) {
+                        highSimCount++;
+                    }
+                });
+
+                // 计算重复率百分比，保留两位小数
+                let repeatRate = "0%";
+                if (totalQuestions > 0) {
+                    repeatRate = ((highSimCount / totalQuestions) * 100).toFixed(2) + "%";
+                }
+
+                // 3. 按照文档要求的结构，拼装最终的大 JSON
+                const finalReport = {
+                    "dashboard": {
+                        "macro_repeat_rate": repeatRate,
+                        "total_questions_checked": totalQuestions
+                    },
+                    "error_checklist": errors,
+                    "plagiarism_details": plagiarisms
+                };
+
+                // 4. 返回结果
+                // 注意：这里的 key 叫做 'output_report'，你需要在右侧面板配置对应的输出变量
+                return {
+                    output_report: finalReport
+                };
+            }
+        language: 5
+        node_inputs:
+            - name: error_data
+              input:
+                type: list
+                items:
+                    type: object
+                    properties:
+                        correction_suggestio:
+                            type: string
+                            value: null
+                        question_number:
+                            type: integer
+                            value: null
+                        suspected_error:
+                            type: string
+                            value: null
+                    value: null
+                value:
+                    path: error_list
+                    ref_node: "194509"
+            - name: plagiarism_data
+              input:
+                type: list
+                items:
+                    type: string
+                    value: null
+                value:
+                    path: single_check_result
+                    ref_node: "100170"
+        node_outputs:
+            output_report:
+                type: object
+                value: null
+        settingOnError:
+            processType: 1
+            retryTimes: 0
+            switch: false
+            timeoutMs: 60000
+    - id: "194509"
+      type: llm
+      title: 错别字与语法校验
+      icon: https://lf3-static.bytednsdoc.com/obj/eden-cn/dvsmryvd_avi_dvsm/ljhwZthlaukjlkulzlp/icon/icon-LLM-v2.jpg
+      description: "调用大语言模型,使用变量和提示词生成回复"
+      version: "3"
+      position:
+        x: 1100
+        y: -2.842170943040401e-14
+      parameters:
+        fcParamVar:
+            knowledgeFCParam: {}
+        llmParam:
+            - name: apiMode
+              input:
+                type: integer
+                value: "0"
+            - name: temperature
+              input:
+                type: float
+                value: "0.5"
+            - name: topP
+              input:
+                type: float
+                value: "1"
+            - name: maxTokens
+              input:
+                type: integer
+                value: "4096"
+            - name: spCurrentTime
+              input:
+                type: boolean
+                value: false
+            - name: spAntiLeak
+              input:
+                type: boolean
+                value: false
+            - name: thinkingType
+              input:
+                type: string
+                value: enabled
+            - name: responseFormat
+              input:
+                type: integer
+                value: "2"
+            - name: modelName
+              input:
+                type: string
+                value: GLM-4.7
+            - name: modelType
+              input:
+                type: integer
+                value: "1770353934"
+            - name: generationDiversity
+              input:
+                type: string
+                value: balance
+            - name: parameters
+              input:
+                type: object
+                properties:
+                    max_completion_tokens:
+                        type: integer
+                        value: "0"
+                value: null
+            - name: prompt
+              input:
+                type: string
+                value: |+
+                    请校验以下试卷数据：{{input_json}}
+
+
+
+            - name: enableChatHistory
+              input:
+                type: boolean
+                value: false
+            - name: chatHistoryRound
+              input:
+                type: integer
+                value: "3"
+            - name: systemPrompt
+              input:
+                type: string
+                value: |+
+                    # Role
+
+                    你是一个严谨的语文与教研专家，负责试卷的错别字和语法校验。
+
+                    # Task
+
+                    你将收到包含整个试卷题目数据的 JSON。请检查每一道题的 `content` 是否存在错别字或严重语法错误。请结合 `subject` 字段明确的学科特点，切勿将正确的学科专有名词误判为错字。
+
+                    # Output Format
+
+                    严格输出 JSON 对象。如果有错误，必须按以下格式放入 `error_checklist` 数组；如果整张试卷完全没有错别字，必须返回空数组：{"error_checklist": []}。
+
+                    绝对不能输出任何 markdown 标记或其他多余文字。
+
+                    格式要求：
+
+                    {
+
+                      "error_checklist": [
+
+                        {
+
+                          "question_number": "题目对应的 question_no",
+
+                          "suspected_error": "原文中错误的词语",
+
+                          "correction_suggestion": "修改后的正确词语"
+
+                        }
+
+                      ]
+
+                    }
+
+            - name: stableSystemPrompt
+              input:
+                type: string
+                value: ""
+            - name: canContinue
+              input:
+                type: boolean
+                value: false
+            - name: loopPromptVersion
+              input:
+                type: string
+                value: ""
+            - name: loopPromptName
+              input:
+                type: string
+                value: ""
+            - name: loopPromptId
+              input:
+                type: string
+                value: ""
+        node_inputs:
+            - name: input_json
+              input:
+                value:
+                    path: question_data
+                    ref_node: "100001"
+        node_outputs:
+            error_list:
+                type: list
+                items:
+                    type: object
+                    properties:
+                        correction_suggestio:
+                            type: string
+                            value: null
+                        question_number:
+                            type: integer
+                            value: null
+                        suspected_error:
+                            type: string
+                            value: null
+                    value: null
+                value: null
+        settingOnError:
+            ext:
+                backupLLmParam: '{"apiMode":0,"frequencyPenalty":0,"maxTokens":4096,"spCurrentTime":false,"spAntiLeak":false,"thinkingType":"enabled","responseFormat":2,"modelName":"豆包·2.0·pro","modelType":1772700462,"generationDiversity":"default_val","parameters":{"max_completion_tokens":"0","reasoning_effort":"medium"}}'
+            processType: 1
+            retryTimes: 3
+            switch: false
+            timeoutMs: 180000
+edges:
+    - source_node: "100001"
+      target_node: "194509"
+    - source_node: "100001"
+      target_node: "123238"
+    - source_node: "114761"
+      target_node: "900001"
+    - source_node: "123238"
+      target_node: "100170"
+    - source_node: "100170"
+      target_node: "114761"
+      source_port: loop-output
+    - source_node: "194509"
+      target_node: "114761"
