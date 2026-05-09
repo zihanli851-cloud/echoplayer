@@ -40,7 +40,7 @@ SUBJECT_OPTIONS = [
     ("geography", "地理"),
 ]
 
-DEFAULT_AGENT_TIMEOUT = 20.0
+DEFAULT_AGENT_TIMEOUT = 60.0  # 1 分钟
 
 
 def get_agent_timeout() -> float:
