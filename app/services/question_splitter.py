@@ -9,11 +9,85 @@ from app.services.nuwa_service import NuwaService, NuwaServiceError
 from app.services.coze_service import CozeService, CozeServiceError
 
 
-CHINESE_NUMERAL_PATTERN = re.compile(r"^(?P<label>[一二三四五六七八九十]+)[、.．]\s*(?P<body>.*)$")
-CHINESE_SECTION_PATTERN = re.compile(r"^(?P<label>[一二三四五六七八九十]+)(?:[、.．]|\s+)\s*(?P<body>.*)$")
-ARABIC_PATTERN = re.compile(r"^(?P<label>\d+)(?:、|[.．](?!\d))\s*(?P<body>.*)$")
+CHINESE_NUMERAL_PATTERN = re.compile(r"^(?P<label>[一二三四五六七八九十]+)[、,，.．:：)）]\s*(?P<body>.*)$")
+CHINESE_SECTION_PATTERN = re.compile(r"^(?P<label>[一二三四五六七八九十]+)(?:[、,，.．:：)）]|\s+)\s*(?P<body>.*)$")
+ARABIC_PATTERN = re.compile(r"^(?P<label>[1-9]\d*)(?:[、]|[.．](?!\d)|[)）](?!\d))\s*(?P<body>.*)$")
 SUBQUESTION_PATTERN = re.compile(r"^(?P<label>[（(]\d+[)）])\s*(?P<body>.*)$")
 PAGE_NUMBER_PATTERN = re.compile(r"^\d{1,3}$")
+OPTION_LABEL_PATTERN = re.compile(r"(?:^|\s)(?:\[(?P<bracket>[A-D])\]|(?P<plain>[A-D])[.、．)])")
+OPTION_TAIL_PATTERN = re.compile(r"(?:^|\s)(?:\[(?:A|B|C|D)\]|(?:A|B|C|D)[.、．)])\s*$")
+SHORT_NUMERIC_FRAGMENT_PATTERN = re.compile(
+    r"^[\d,\s，.;:：…]+(?:\s*(?:\[(?:A|B|C|D)\]|(?:A|B|C|D)[.、．)]))?$"
+)
+FORMULA_GLYPH_MAP = {
+    "\uf02b": ".",
+    "\uf02d": "-",
+    "\uf03c": "<",
+    "\uf03e": ">",
+    "\uf044": "Δ",
+    "\uf04b": "…",
+    "\uf057": "Θ",
+    "\uf063": "χ",
+    "\uf064": "δ",
+    "\uf065": "ε",
+    "\uf06c": "λ",
+    "\uf06d": "μ",
+    "\uf06f": "∘",
+    "\uf070": "π",
+    "\uf071": "O",
+    "\uf073": "σ",
+    "\uf022": "∀",
+    "\uf024": "∃",
+    "\uf0a3": "α",
+    "\uf0a5": "∞",
+    "\uf0a0": "-",
+    "\uf0a2": "'",
+    "\uf0ab": "∨",
+    "\uf0ac": "←",
+    "\uf0ae": "→",
+    "\uf0b3": "≥",
+    "\uf0b4": "×",
+    "\uf0b9": "⊆",
+    "\uf0c6": "d",
+    "\uf0c7": "∩",
+    "\uf0c8": "∪",
+    "\uf0cd": "⊆",
+    "\uf0ce": "∈",
+    "\uf0cf": "π",
+    "\uf0d7": "·",
+    "\uf0d8": "¬",
+    "\uf0d9": "∧",
+    "\uf0da": "∨",
+    "\uf0de": "⊨",
+    "\uf0e5": "Σ",
+    "\uf0ef": "{",
+    "\uf0fc": "√",
+    "\uf061": "α",
+    "\uf077": "ω",
+}
+
+FRAGMENT_ENDINGS = (
+    "为",
+    "是",
+    "有",
+    "和",
+    "或",
+    "及",
+    "在",
+    "由",
+    "向",
+    "与",
+    "其",
+    "该",
+    "令",
+    "若",
+    "则",
+    "按",
+    "把",
+    "将",
+    "如下",
+    "序列是",
+)
 
 SECTION_HEADING_KEYWORDS = (
     "选择题",
@@ -246,12 +320,46 @@ def normalize_question_text(text: str) -> str:
     inserts a newline before obvious question markers when they are separated by spaces.
     """
 
-    normalized = text.replace("\r\n", "\n").replace("\r", "\n").replace("\u3000", " ")
+    normalized = normalize_formula_glyphs(text)
+    normalized = normalized.replace("\r\n", "\n").replace("\r", "\n").replace("\u3000", " ")
     normalized = re.sub(r"[ \t]+", " ", normalized)
-    normalized = re.sub(r" +([一二三四五六七八九十]+[、.．])", r"\n\1", normalized)
-    normalized = re.sub(r" +((?:\d+、|(?:\d+[.．](?!\d))))", r"\n\1", normalized)
+    normalized = re.sub(
+        r"(?<![=<>+\-*/,:：，,（({<]) +([一二三四五六七八九十]+[、,，.．:：)）])",
+        r"\n\1",
+        normalized,
+    )
+    normalized = re.sub(
+        r"(?<![=<>+\-*/,:：，,（({<]) +((?:[1-9]\d*[、]|(?:[1-9]\d*[.．](?!\d))|(?:[1-9]\d*[)）](?!\d))))",
+        r"\n\1",
+        normalized,
+    )
     normalized = re.sub(r" +([（(]\d+[)）])", r"\n\1", normalized)
     return normalized.strip()
+
+
+def normalize_formula_glyphs(text: str) -> str:
+    """Repair common PDF private-use glyphs before splitting or comparing text."""
+
+    normalized = text
+    for source, target in FORMULA_GLYPH_MAP.items():
+        normalized = normalized.replace(source, target)
+    normalized = re.sub(r"\ufffd+", " ", normalized)
+    normalized = re.sub(r"[\uf0ec\uf0ed\uf0ee]+", "{", normalized)
+    normalized = re.sub(r"[\uf0f6\uf0f7\uf0f8]+", "}", normalized)
+    normalized = re.sub(r"[\uf0e6\uf0e7\uf0e8]+", "[", normalized)
+    normalized = re.sub(r"[\uf0fa\uf0fb]+", "]", normalized)
+    normalized = re.sub(r"[\uf0ea]+", "[", normalized)
+    normalized = re.sub(r"[\uf0eb]+", "]", normalized)
+    normalized = re.sub(r"([\(\uff08])\s*([∀∃])\s*([A-Za-z])", r"\1\2\3", normalized)
+    normalized = re.sub(r"([¬∀∃])\s+([A-Za-z])", r"\1\2", normalized)
+    normalized = re.sub(r"\s*([∨∧→↔⊨×∩∪⊆←])\s*", r" \1 ", normalized)
+    normalized = re.sub(r"\s*([<>≤≥∈∘·])\s*", r" \1 ", normalized)
+    normalized = re.sub(r"\{\s+", "{", normalized)
+    normalized = re.sub(r"\s+\}", "}", normalized)
+    normalized = re.sub(r"\[\s+", "[", normalized)
+    normalized = re.sub(r"\s+\]", "]", normalized)
+    normalized = re.sub(r" {2,}", " ", normalized)
+    return normalized
 
 
 def split_normalized_lines(text: str) -> list[str]:
@@ -348,6 +456,7 @@ def _split_questions_impl(text: str, paper_id: str) -> list[Question]:
     questions: list[Question] = []
     current_label: str | None = None
     current_lines: list[str] = []
+    saw_question_marker = False
 
     def flush_current() -> None:
         if current_label is None:
@@ -378,6 +487,7 @@ def _split_questions_impl(text: str, paper_id: str) -> list[Question]:
 
         marker = match_question_marker(line)
         if marker:
+            saw_question_marker = True
             flush_current()
             current_label, body = marker
             current_lines = [body] if body else []
@@ -391,7 +501,14 @@ def _split_questions_impl(text: str, paper_id: str) -> list[Question]:
     flush_current()
 
     if questions:
-        return questions
+        normalized_questions = _coalesce_fragmented_questions(questions, paper_id)
+        if not saw_question_marker:
+            return _mark_low_confidence_questions(
+                normalized_questions,
+                "未识别到明确题号，已按整段文本兜底切为单题，请人工复核。",
+                confidence=0.35,
+            )
+        return normalized_questions
 
     return [
         Question(
@@ -401,8 +518,108 @@ def _split_questions_impl(text: str, paper_id: str) -> list[Question]:
             order=1,
             content=normalized_text,
             raw_block=normalized_text,
+            split_confidence=0.35,
+            split_warning="未识别到明确题号，已按整段文本兜底切为单题，请人工复核。",
         )
     ]
+
+
+def _mark_low_confidence_questions(questions: list[Question], warning: str, *, confidence: float) -> list[Question]:
+    return [
+        question.model_copy(
+            update={
+                "split_confidence": confidence,
+                "split_warning": warning,
+            }
+        )
+        for question in questions
+    ]
+
+
+def _coalesce_fragmented_questions(questions: list[Question], paper_id: str) -> list[Question]:
+    """Merge obvious PDF extraction fragments back into their preceding question."""
+
+    merged: list[Question] = []
+    index = 0
+    while index < len(questions):
+        current = questions[index]
+        while index + 1 < len(questions) and _should_merge_with_next_question(current, questions[index + 1]):
+            next_question = questions[index + 1]
+            merged_content = "\n".join(
+                part.strip()
+                for part in (current.content, next_question.content)
+                if part.strip()
+            )
+            current = current.model_copy(
+                update={
+                    "content": merged_content,
+                    "raw_block": merged_content,
+                }
+            )
+            index += 1
+        merged.append(current)
+        index += 1
+
+    normalized_questions: list[Question] = []
+    for order, question in enumerate(merged, start=1):
+        normalized_questions.append(
+            question.model_copy(
+                update={
+                    "question_id": f"{paper_id}-{order}",
+                    "order": order,
+                    "raw_block": question.content,
+                }
+            )
+        )
+    return normalized_questions
+
+
+def _should_merge_with_next_question(current: Question, next_question: Question) -> bool:
+    current_text = current.content.strip()
+    next_text = next_question.content.strip()
+
+    if not current_text or not next_text:
+        return False
+    if current.question_no == next_question.question_no:
+        return True
+    if _has_incomplete_option_block(current_text) and _looks_like_option_fragment(next_text):
+        return True
+    return False
+
+
+def _has_incomplete_option_block(text: str) -> bool:
+    labels = {match.group("bracket") or match.group("plain") for match in OPTION_LABEL_PATTERN.finditer(text)}
+    return bool(labels) and labels != {"A", "B", "C", "D"}
+
+
+def _looks_like_option_fragment(text: str) -> bool:
+    compact = text.replace("\n", " ").strip()
+    if not compact:
+        return False
+    if OPTION_LABEL_PATTERN.match(compact):
+        return True
+    if SHORT_NUMERIC_FRAGMENT_PATTERN.fullmatch(compact):
+        return True
+    if OPTION_TAIL_PATTERN.search(compact):
+        return True
+    if len(compact) <= 24 and any(token in compact for token in ("[A]", "[B]", "[C]", "[D]")):
+        return True
+    return False
+
+
+def _looks_like_question_fragment(text: str) -> bool:
+    compact = text.replace("\n", " ").strip()
+    if not compact:
+        return False
+    if _looks_like_option_fragment(compact):
+        return True
+    if len(compact) <= 6 and "题" not in compact:
+        return True
+    if OPTION_TAIL_PATTERN.search(compact):
+        return True
+    if any(compact.endswith(ending) for ending in FRAGMENT_ENDINGS):
+        return True
+    return False
 
 
 def _find_question_container(value: Any) -> Any | None:

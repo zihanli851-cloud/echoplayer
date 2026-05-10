@@ -92,17 +92,22 @@ class ReportBuilder:
         dashboard_cards = self._build_dashboard_cards(report.dashboard)
 
         if not code_run_result or not agent_run_result:
+            question_quality_rows = self.build_question_quality_rows(report.questions)
             return {
                 "report": report,
                 "dashboard_cards": dashboard_cards,
                 "spellcheck_rows": self._build_basic_spellcheck_rows(report.spellcheck_issues),
                 "duplicate_rows": self._build_basic_duplicate_rows(report.similarity_matches),
+                "question_quality_rows": question_quality_rows,
                 "dual_run_sections": [],
                 "agent_dashboard_cards": [],
                 "agent_only_spellcheck_rows": [],
                 "agent_only_duplicate_rows": [],
                 "history_bank_summary": {},
-                "export_payload": {"report": report.model_dump(mode="json")},
+                "export_payload": {
+                    "report": report.model_dump(mode="json"),
+                    "question_quality": question_quality_rows,
+                },
             }
 
         dual_run_sections = self.build_dual_run_sections(code_run_result, agent_run_result)
@@ -126,6 +131,7 @@ class ReportBuilder:
             "agent_only_spellcheck_rows": spellcheck_context["agent_only_rows"],
             "duplicate_rows": duplicate_context["code_rows"],
             "agent_only_duplicate_rows": duplicate_context["agent_only_rows"],
+            "question_quality_rows": self.build_question_quality_rows(code_run_result.questions),
             "dual_run_sections": [section.model_dump() for section in dual_run_sections],
             "history_bank_summary": code_run_result.history_bank_summary,
             "export_payload": self.build_export_payload(
@@ -137,6 +143,26 @@ class ReportBuilder:
                 agent_run_result=agent_run_result,
             ),
         }
+
+    def build_question_quality_rows(self, questions) -> list[dict]:
+        """Build rows for questions that should be manually checked after splitting."""
+
+        rows: list[dict] = []
+        for question in questions:
+            confidence = float(getattr(question, "split_confidence", 1.0) or 0)
+            warning = str(getattr(question, "split_warning", "") or "").strip()
+            if confidence >= 0.7 and not warning:
+                continue
+            rows.append(
+                {
+                    "paper_label": f"{question.paper_id} 卷",
+                    "question_no": question.question_no,
+                    "confidence": round(confidence, 2),
+                    "warning": warning or "切题置信度偏低，请人工复核。",
+                    "content_preview": question.content[:160],
+                }
+            )
+        return rows
 
     def build_dual_run_sections(
         self,
@@ -316,6 +342,7 @@ class ReportBuilder:
             },
             "history_bank": code_run_result.history_bank_summary,
             "dual_run_sections": [section.model_dump(mode="json") for section in dual_run_sections],
+            "question_quality": self.build_question_quality_rows(code_run_result.questions),
             "spellcheck_comparison": spellcheck_context,
             "duplicate_comparison": duplicate_context,
         }

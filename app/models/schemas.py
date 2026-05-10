@@ -28,6 +28,8 @@ class Question(BaseModel):
     order: int
     content: str
     raw_block: str = ""
+    split_confidence: float = 1.0
+    split_warning: str = ""
 
     model_config = ConfigDict(extra="ignore")
 

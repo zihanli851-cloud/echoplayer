@@ -1,4 +1,4 @@
-from app.services.question_splitter import split_questions
+from app.services.question_splitter import normalize_formula_glyphs, split_questions
 
 
 def test_split_questions_with_chinese_numerals() -> None:
@@ -11,6 +11,14 @@ def test_split_questions_with_chinese_numerals() -> None:
     assert questions[2].question_id == "A-3"
 
 
+def test_split_questions_with_extended_chinese_number_punctuation() -> None:
+    text = "一：第一题内容\n二）第二题内容\n三，第三题内容"
+    questions = split_questions(text, paper_id="A")
+
+    assert len(questions) == 3
+    assert [question.question_no for question in questions] == ["一", "二", "三"]
+
+
 def test_split_questions_with_arabic_numbers() -> None:
     text = "1. 第一题\n2. 第二题\n3. 第三题"
     questions = split_questions(text, paper_id="A")
@@ -18,6 +26,8 @@ def test_split_questions_with_arabic_numbers() -> None:
     assert len(questions) == 3
     assert questions[0].question_no == "1"
     assert questions[2].content == "第三题"
+    assert questions[0].split_confidence == 1.0
+    assert questions[0].split_warning == ""
 
 
 def test_split_questions_with_subquestion_markers() -> None:
@@ -36,6 +46,8 @@ def test_split_questions_falls_back_to_single_question() -> None:
     assert len(questions) == 1
     assert questions[0].question_no == "1"
     assert "短文材料" in questions[0].content
+    assert questions[0].split_confidence < 0.7
+    assert "人工复核" in questions[0].split_warning
 
 
 def test_split_questions_ignores_preamble_and_section_titles() -> None:
@@ -100,3 +112,41 @@ def test_split_questions_supports_section_heading_without_punctuation() -> None:
 
     assert len(questions) == 2
     assert [question.question_no for question in questions] == ["1", "2"]
+
+
+def test_split_questions_coalesces_fragmented_option_blocks() -> None:
+    text = """
+    一、选择题
+    1. 下列命题公式等价的是 A. p→q B. ¬q→¬p
+    2. C. p∨q D. p∧q
+    3. 第二道完整题
+    """
+    questions = split_questions(text, paper_id="A")
+
+    assert len(questions) == 2
+    assert questions[0].question_no == "1"
+    assert "C. p ∨ q" in questions[0].content
+    assert "D. p ∧ q" in questions[0].content
+    assert questions[1].question_no == "3"
+
+
+def test_split_questions_does_not_merge_short_independent_questions() -> None:
+    text = """
+    一、判断题
+    1. 是
+    2. 否
+    """
+    questions = split_questions(text, paper_id="A")
+
+    assert len(questions) == 2
+    assert [question.content for question in questions] == ["是", "否"]
+
+
+def test_normalize_formula_glyphs_repairs_common_private_use_symbols() -> None:
+    text = "若 p\uf0aeq 且 A\uf0ceB，则 A\uf0c7B 非空。"
+
+    normalized = normalize_formula_glyphs(text)
+
+    assert "p → q" in normalized
+    assert "A ∈ B" in normalized
+    assert "A ∩ B" in normalized

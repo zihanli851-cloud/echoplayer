@@ -1,4 +1,5 @@
 from itertools import combinations
+from collections import Counter
 from difflib import SequenceMatcher
 from abc import ABC, abstractmethod
 import json
@@ -10,6 +11,9 @@ from app.models.schemas import Question, SimilarityMatch, UploadedPaper
 from app.services.nuwa_service import NuwaService, NuwaServiceError
 from app.services.coze_service import CozeService, CozeServiceError
 from app.services.spellcheck.nuwa_provider import build_questions_data
+
+IMAGE_PLACEHOLDER_PATTERN = re.compile(r"\[IMAGE[^\]]*\]", re.IGNORECASE)
+OCR_TEXT_MARKER_PATTERN = re.compile(r"\[OCR_TEXT\]", re.IGNORECASE)
 
 try:
     from rapidfuzz import fuzz
@@ -56,9 +60,11 @@ class CodeSimilarityComparator(SimilarityComparatorProvider):
         *,
         threshold: float = 85,
         history_top_k: int = 3,
+        use_lightweight_vector: bool = True,
     ) -> None:
         self.threshold = threshold
         self.history_top_k = history_top_k
+        self.use_lightweight_vector = use_lightweight_vector
 
     def compare(
         self,
@@ -98,6 +104,7 @@ class CodeSimilarityComparator(SimilarityComparatorProvider):
                     history_questions,
                     threshold=self.threshold,
                     top_k_per_question=self.history_top_k,
+                    use_lightweight_vector=self.use_lightweight_vector,
                 )
             )
             if paper_b_questions:
@@ -107,6 +114,7 @@ class CodeSimilarityComparator(SimilarityComparatorProvider):
                         history_questions,
                         threshold=self.threshold,
                         top_k_per_question=self.history_top_k,
+                        use_lightweight_vector=self.use_lightweight_vector,
                     )
                 )
         return sorted(matches, key=lambda item: item.similarity_score, reverse=True)
@@ -257,7 +265,9 @@ class SkippedAgentSimilarityComparator(SimilarityComparatorProvider):
 def normalize_for_compare(text: str) -> str:
     """Normalize text before fuzzy comparison so whitespace noise has less impact."""
 
-    normalized = unicodedata.normalize("NFKC", text).lower()
+    normalized = IMAGE_PLACEHOLDER_PATTERN.sub(" ", text)
+    normalized = OCR_TEXT_MARKER_PATTERN.sub(" ", normalized)
+    normalized = unicodedata.normalize("NFKC", normalized).lower()
     normalized = re.sub(r"[（(]\s*\d+\s*分\s*[)）]", " ", normalized)
     normalized = re.sub(r"\s+", "", normalized)
     return normalized.strip()
@@ -278,11 +288,17 @@ def build_match(
     target: Question,
     comparison_type: str,
     score: float,
+    *,
+    match_source: str = "text",
 ) -> SimilarityMatch:
     """Build one standard SimilarityMatch object from two questions."""
 
     return SimilarityMatch(
-        match_id=f"{comparison_type}-{source.question_id}-{target.question_id}",
+        match_id=(
+            f"{comparison_type}-{match_source}-{source.question_id}-{target.question_id}"
+            if comparison_type == "history_bank"
+            else f"{comparison_type}-{source.question_id}-{target.question_id}"
+        ),
         comparison_type=comparison_type,
         source_paper_id=source.paper_id,
         source_paper_label=source.paper_label or source.paper_id,
@@ -313,10 +329,7 @@ def compare_within_paper(
     matches: list[SimilarityMatch] = []
 
     for source, target in combinations(questions, 2):
-        score = fuzz.ratio(
-            normalize_for_compare(source.content),
-            normalize_for_compare(target.content),
-        )
+        score = _text_similarity_score(source.content, target.content)
         if score >= threshold:
             matches.append(build_match(source, target, comparison_type, score))
 
@@ -334,10 +347,7 @@ def compare_cross_papers(
 
     for source in paper_a_questions:
         for target in paper_b_questions:
-            score = fuzz.ratio(
-                normalize_for_compare(source.content),
-                normalize_for_compare(target.content),
-            )
+            score = _text_similarity_score(source.content, target.content)
             if score >= threshold:
                 matches.append(build_match(source, target, "cross_paper", score))
 
@@ -350,6 +360,7 @@ def compare_against_history_bank(
     *,
     threshold: float = 85,
     top_k_per_question: int = 3,
+    use_lightweight_vector: bool = True,
 ) -> list[SimilarityMatch]:
     """
     Compare uploaded questions with the local history bank.
@@ -359,16 +370,42 @@ def compare_against_history_bank(
     """
 
     matches: list[SimilarityMatch] = []
+    vector_index = getattr(history_questions, "vector_index", None)
+    if vector_index is not None and use_lightweight_vector:
+        for source in source_questions:
+            for hit in vector_index.search(source, threshold=threshold, top_k=top_k_per_question):
+                matches.append(
+                    build_match(
+                        source,
+                        hit.question,
+                        "history_bank",
+                        hit.score,
+                        match_source=hit.match_source,
+                    )
+                )
+        return sorted(matches, key=lambda item: item.similarity_score, reverse=True)
 
     for source in source_questions:
         source_matches: list[SimilarityMatch] = []
         for target in history_questions:
-            score = fuzz.ratio(
-                normalize_for_compare(source.content),
-                normalize_for_compare(target.content),
+            text_score = _text_similarity_score(source.content, target.content)
+            vector_score = (
+                lightweight_vector_similarity(source.content, target.content)
+                if use_lightweight_vector
+                else 0.0
             )
+            score = max(text_score, vector_score)
             if score >= threshold:
-                source_matches.append(build_match(source, target, "history_bank", score))
+                match_source = "vector" if vector_score > text_score else "text"
+                source_matches.append(
+                    build_match(
+                        source,
+                        target,
+                        "history_bank",
+                        score,
+                        match_source=match_source,
+                    )
+                )
 
         source_matches.sort(key=lambda item: item.similarity_score, reverse=True)
         if top_k_per_question > 0:
@@ -376,6 +413,52 @@ def compare_against_history_bank(
         matches.extend(source_matches)
 
     return sorted(matches, key=lambda item: item.similarity_score, reverse=True)
+
+
+def _text_similarity_score(left: str, right: str) -> float:
+    left_text = normalize_for_compare(left)
+    right_text = normalize_for_compare(right)
+    if not left_text or not right_text:
+        return 0.0
+    return fuzz.ratio(left_text, right_text)
+
+
+def lightweight_vector_similarity(left: str, right: str) -> float:
+    """A dependency-free character n-gram cosine score for history-bank recall."""
+
+    left_text = normalize_for_compare(left)
+    right_text = normalize_for_compare(right)
+    if not left_text or not right_text:
+        return 0.0
+
+    unigram_score = _cosine_score(_char_ngram_vector(left_text, ngram_sizes=(1,)), _char_ngram_vector(right_text, ngram_sizes=(1,)))
+    mixed_ngram_score = _cosine_score(_char_ngram_vector(left_text, ngram_sizes=(1, 2, 3)), _char_ngram_vector(right_text, ngram_sizes=(1, 2, 3)))
+    return min(100.0, max(mixed_ngram_score, unigram_score * 1.15))
+
+
+def _char_ngram_vector(text: str, *, ngram_sizes: tuple[int, ...]) -> Counter[str]:
+    if not text:
+        return Counter()
+
+    vector: Counter[str] = Counter()
+    for ngram_size in ngram_sizes:
+        if len(text) < ngram_size:
+            continue
+        for index in range(0, len(text) - ngram_size + 1):
+            vector[text[index : index + ngram_size]] += 1
+    return vector
+
+
+def _cosine_score(left_vector: Counter[str], right_vector: Counter[str]) -> float:
+    if not left_vector or not right_vector:
+        return 0.0
+
+    dot = sum(left_vector[key] * right_vector.get(key, 0) for key in left_vector)
+    left_norm = sum(value * value for value in left_vector.values()) ** 0.5
+    right_norm = sum(value * value for value in right_vector.values()) ** 0.5
+    if left_norm == 0 or right_norm == 0:
+        return 0.0
+    return (dot / (left_norm * right_norm)) * 100
 
 
 def _find_first_list(value, target_key: str):

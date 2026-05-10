@@ -338,12 +338,54 @@
         font: inherit;
       }
 
+      .review-save-state {
+        display: inline-block;
+        margin-left: 10px;
+        color: var(--muted);
+        font-size: 0.88rem;
+        font-weight: 700;
+      }
+
       .comparison-note {
         margin-top: 12px;
         padding: 12px 14px;
         border-radius: 14px;
         background: rgba(247, 241, 232, 0.95);
         border: 1px dashed var(--line);
+      }
+
+      .agent-detail {
+        display: none;
+        margin-top: 16px;
+      }
+
+      .agent-detail.is-visible {
+        display: grid;
+        gap: 16px;
+      }
+
+      .agent-detail-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 14px;
+      }
+
+      .agent-detail-list {
+        display: grid;
+        gap: 10px;
+        margin-top: 12px;
+      }
+
+      .agent-detail-item {
+        padding: 12px 14px;
+        border-radius: 14px;
+        background: #fff;
+        border: 1px solid var(--line);
+      }
+
+      .agent-detail-item strong {
+        display: block;
+        margin-bottom: 6px;
       }
 
       .actions {
@@ -373,7 +415,8 @@
       @media (max-width: 1080px) {
         .dashboard,
         .compare-grid,
-        .dual-grid {
+        .dual-grid,
+        .agent-detail-grid {
           grid-template-columns: 1fr;
         }
 
@@ -423,10 +466,28 @@
 
           <div class="actions">
             <a href="/">返回上传页</a>
+            {% if review_session_id %}
+            <a href="/reports/{{ review_session_id }}">打开历史报告</a>
+            {% endif %}
             <button type="button" id="export-json">导出当前对照 JSON</button>
-            <button type="button" onclick="window.print()">打印 / 导出 PDF</button>
+            <button type="button" id="export-pdf">导出审查 PDF</button>
+            <button type="button" onclick="window.print()">打印页面</button>
           </div>
         </div>
+
+        {% if agent_job %}
+        <section class="section" id="agent-job-panel" data-agent-job-id="{{ agent_job.job_id }}">
+          <div class="comparison-note">
+            <h3>Agent 对照后台运行中</h3>
+            <p>
+              任务状态：<strong id="agent-job-status">{{ agent_job.status }}</strong>
+              ｜任务 ID：{{ agent_job.job_id }}
+            </p>
+            <p id="agent-job-message">代码版报告已先生成，Agent 对照完成后会在此处回填完整明细。</p>
+            <div class="agent-detail" id="agent-job-detail" aria-live="polite"></div>
+          </div>
+        </section>
+        {% endif %}
 
         <section class="section">
           <div class="section-head">
@@ -575,6 +636,46 @@
         <section class="section">
           <div class="section-head">
             <div>
+              <h2>切题复核提示</h2>
+              <p>列出规则切题置信度偏低的题目，方便人工优先检查是否漏切或误切。</p>
+            </div>
+          </div>
+
+          {% if question_quality_rows %}
+          <div class="table-shell">
+            <table>
+              <thead>
+                <tr>
+                  <th>来源</th>
+                  <th>题号</th>
+                  <th>置信度</th>
+                  <th>提示</th>
+                  <th>内容预览</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in question_quality_rows %}
+                <tr>
+                  <td>{{ row.paper_label }}</td>
+                  <td>{{ row.question_no }}</td>
+                  <td>{{ row.confidence }}</td>
+                  <td>{{ row.warning }}</td>
+                  <td>{{ row.content_preview }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% else %}
+          <div class="empty">
+            <p>当前代码版切题结果未发现需要优先复核的低置信度提示。</p>
+          </div>
+          {% endif %}
+        </section>
+
+        <section class="section">
+          <div class="section-head">
+            <div>
               <h2>错字漏字清单</h2>
               <p>主表展示代码版结果，并标注当前 Agent 对照状态。</p>
             </div>
@@ -705,13 +806,18 @@
               <div class="review-area">
                 <p>人工复核：请根据左/右差异高亮确认是否属于真实重复。</p>
                 <label>
-                  <select name="review_status_{{ row.match_id }}">
+                  <select
+                    name="review_status_{{ row.match_id }}"
+                    data-review-item-id="{{ row.review_item_id or '' }}"
+                    data-review-session-id="{{ row.review_session_id or '' }}"
+                  >
                     {% for option in row.review_options %}
                     <option value="{{ option }}" {% if option == row.review_status %}selected{% endif %}>
                       {{ option }}
                     </option>
                     {% endfor %}
                   </select>
+                  <span class="review-save-state" aria-live="polite"></span>
                 </label>
               </div>
             </article>
@@ -777,6 +883,7 @@
         watermarkLayer.innerHTML = Array.from({ length: 20 }, () => `<span>${watermarkText}</span>`).join("");
 
         const exportButton = document.getElementById("export-json");
+        const exportPdfButton = document.getElementById("export-pdf");
         const exportPayload = {{ export_payload | tojson }};
         exportButton.addEventListener("click", function () {
           const blob = new Blob([JSON.stringify(exportPayload, null, 2)], {
@@ -788,6 +895,207 @@
           link.download = "echopaper-dual-run-report.json";
           link.click();
           URL.revokeObjectURL(url);
+        });
+
+        exportPdfButton.addEventListener("click", async function () {
+          const originalText = exportPdfButton.textContent;
+          exportPdfButton.disabled = true;
+          exportPdfButton.textContent = "生成中...";
+          try {
+            const response = await fetch("/api/reports/export-pdf", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json"
+              },
+              body: JSON.stringify(exportPayload)
+            });
+            if (!response.ok) {
+              throw new Error("PDF 生成失败");
+            }
+            const blob = await response.blob();
+            const disposition = response.headers.get("Content-Disposition") || "";
+            const filenameMatch = disposition.match(/filename="([^"]+)"/);
+            const filename = filenameMatch ? filenameMatch[1] : "echopaper-report.pdf";
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = filename;
+            link.click();
+            URL.revokeObjectURL(url);
+          } catch (error) {
+            alert("PDF 导出失败，请稍后重试。");
+          } finally {
+            exportPdfButton.disabled = false;
+            exportPdfButton.textContent = originalText;
+          }
+        });
+
+        const agentJobPanel = document.getElementById("agent-job-panel");
+        if (agentJobPanel) {
+          const jobId = agentJobPanel.dataset.agentJobId;
+          const statusNode = document.getElementById("agent-job-status");
+          const messageNode = document.getElementById("agent-job-message");
+          let remainingPolls = 60;
+          const pollAgentJob = async function () {
+            if (!jobId || remainingPolls <= 0) return;
+            remainingPolls -= 1;
+            try {
+              const response = await fetch(`/api/agent-jobs/${jobId}`);
+              if (!response.ok) return;
+              const payload = await response.json();
+              if (statusNode) statusNode.textContent = payload.status;
+              if (payload.status === "completed") {
+                if (messageNode) {
+                  const result = payload.result || {};
+                  messageNode.textContent = `Agent 对照已完成：切题 ${result.question_count || 0} 道，重复 ${result.duplicate_count || 0} 条，错字 ${result.spellcheck_count || 0} 条。`;
+                }
+                if (payload.result_payload) {
+                  exportPayload.agent_result_payload = payload.result_payload;
+                  renderAgentResultPayload(payload.result_payload);
+                }
+                return;
+              }
+              if (payload.status === "failed") {
+                if (messageNode) messageNode.textContent = payload.error || "Agent 对照运行失败。";
+                return;
+              }
+              window.setTimeout(pollAgentJob, 2000);
+            } catch (error) {
+              window.setTimeout(pollAgentJob, 4000);
+            }
+          };
+          window.setTimeout(pollAgentJob, 1200);
+        }
+
+        function renderAgentResultPayload(resultPayload) {
+          const detailNode = document.getElementById("agent-job-detail");
+          if (!detailNode || !resultPayload) return;
+
+          const questions = Array.isArray(resultPayload.questions) ? resultPayload.questions : [];
+          const matches = Array.isArray(resultPayload.similarity_matches) ? resultPayload.similarity_matches : [];
+          const issues = Array.isArray(resultPayload.spellcheck_issues) ? resultPayload.spellcheck_issues : [];
+          const moduleMetadata = resultPayload.module_metadata || {};
+          detailNode.classList.add("is-visible");
+          detailNode.innerHTML = `
+            <div class="agent-detail-grid">
+              ${renderAgentMetric("Agent 切题", questions.length, "后台返回的题目明细")}
+              ${renderAgentMetric("Agent 重复", matches.length, "后台返回的重复题目对")}
+              ${renderAgentMetric("Agent 错字", issues.length, "后台返回的错字问题")}
+            </div>
+            ${renderAgentModuleNotes(moduleMetadata)}
+            ${renderAgentQuestionList(questions)}
+            ${renderAgentDuplicateList(matches)}
+            ${renderAgentSpellcheckList(issues)}
+          `;
+        }
+
+        function renderAgentMetric(label, value, hint) {
+          return `
+            <article class="metric">
+              <strong>${escapeHtml(label)}</strong>
+              <span>${escapeHtml(String(value))}</span>
+              <small>${escapeHtml(hint)}</small>
+            </article>
+          `;
+        }
+
+        function renderAgentModuleNotes(moduleMetadata) {
+          const entries = Object.entries(moduleMetadata || {});
+          if (!entries.length) return "";
+          const rows = entries.map(([name, metadata]) => {
+            const label = metadata.provider_label || metadata.provider_name || name;
+            const note = metadata.provider_note || "";
+            const state = metadata.is_placeholder ? "未返回" : "已返回";
+            return `<div class="agent-detail-item"><strong>${escapeHtml(name)} / ${escapeHtml(label)}</strong><p>${escapeHtml(state)}${note ? "：" + escapeHtml(note) : ""}</p></div>`;
+          }).join("");
+          return `<section><h3>Agent 模块状态</h3><div class="agent-detail-list">${rows}</div></section>`;
+        }
+
+        function renderAgentQuestionList(questions) {
+          if (!questions.length) {
+            return `<section><h3>Agent 切题明细</h3><div class="empty"><p>Agent 未返回题目明细。</p></div></section>`;
+          }
+          const rows = questions.slice(0, 12).map((question) => `
+            <div class="agent-detail-item">
+              <strong>${escapeHtml(question.paper_id || "")} 卷第 ${escapeHtml(question.question_no || "")} 题</strong>
+              <p>${escapeHtml(truncateText(question.content || question.raw_block || "", 180))}</p>
+            </div>
+          `).join("");
+          const suffix = questions.length > 12 ? `<p>仅展示前 12 道，完整数据已写入当前导出 JSON。</p>` : "";
+          return `<section><h3>Agent 切题明细</h3><div class="agent-detail-list">${rows}</div>${suffix}</section>`;
+        }
+
+        function renderAgentDuplicateList(matches) {
+          if (!matches.length) {
+            return `<section><h3>Agent 重复明细</h3><div class="empty"><p>Agent 未返回重复题目对。</p></div></section>`;
+          }
+          const rows = matches.slice(0, 10).map((match) => `
+            <div class="agent-detail-item">
+              <strong>${escapeHtml(match.comparison_type || "")} / ${escapeHtml(String(match.similarity_score || 0))}% / ${escapeHtml(match.level || "")}</strong>
+              <p>${escapeHtml(match.source_paper_id || "")} 第 ${escapeHtml(match.source_question_no || "")} 题 ↔ ${escapeHtml(match.target_paper_id || "")} 第 ${escapeHtml(match.target_question_no || "")} 题</p>
+            </div>
+          `).join("");
+          const suffix = matches.length > 10 ? `<p>仅展示前 10 条，完整数据已写入当前导出 JSON。</p>` : "";
+          return `<section><h3>Agent 重复明细</h3><div class="agent-detail-list">${rows}</div>${suffix}</section>`;
+        }
+
+        function renderAgentSpellcheckList(issues) {
+          if (!issues.length) {
+            return `<section><h3>Agent 错字明细</h3><div class="empty"><p>Agent 未返回错字问题。</p></div></section>`;
+          }
+          const rows = issues.slice(0, 10).map((issue) => `
+            <div class="agent-detail-item">
+              <strong>${escapeHtml(issue.paper_id || "")} 卷第 ${escapeHtml(issue.question_no || "")} 题 / ${escapeHtml(issue.issue_type || "")}</strong>
+              <p>${escapeHtml(issue.issue_text || "")} → ${escapeHtml(issue.suggestion || "")}</p>
+            </div>
+          `).join("");
+          const suffix = issues.length > 10 ? `<p>仅展示前 10 条，完整数据已写入当前导出 JSON。</p>` : "";
+          return `<section><h3>Agent 错字明细</h3><div class="agent-detail-list">${rows}</div>${suffix}</section>`;
+        }
+
+        function truncateText(text, maxLength) {
+          if (!text || text.length <= maxLength) return text || "";
+          return `${text.slice(0, maxLength)}...`;
+        }
+
+        function escapeHtml(value) {
+          return String(value)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+        }
+
+        document.querySelectorAll("select[data-review-item-id]").forEach(function (select) {
+          const state = select.parentElement.querySelector(".review-save-state");
+          select.addEventListener("change", async function () {
+            const itemId = select.dataset.reviewItemId;
+            if (!itemId) {
+              if (state) state.textContent = "未登记";
+              return;
+            }
+
+            if (state) state.textContent = "保存中...";
+            select.disabled = true;
+            try {
+              const response = await fetch(`/api/review-items/${itemId}`, {
+                method: "PATCH",
+                headers: {
+                  "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ status: select.value })
+              });
+              if (!response.ok) {
+                throw new Error("保存失败");
+              }
+              if (state) state.textContent = "已保存";
+            } catch (error) {
+              if (state) state.textContent = "保存失败";
+            } finally {
+              select.disabled = false;
+            }
+          });
         });
       })();
     </script>

@@ -4,6 +4,8 @@ from app.services.comparator import (
     compare_against_history_bank,
     compare_cross_papers,
     compare_within_paper,
+    lightweight_vector_similarity,
+    normalize_for_compare,
 )
 
 
@@ -40,6 +42,7 @@ def test_compare_within_paper_detects_high_duplicate() -> None:
 
     assert len(matches) == 1
     assert matches[0].level == "高度重复"
+    assert matches[0].match_id == "within_paper_a-A-1-A-2"
     assert matches[0].source_question_no == "1"
     assert matches[0].target_question_no == "2"
 
@@ -56,6 +59,7 @@ def test_compare_cross_papers_detects_suspected_duplicate() -> None:
 
     assert len(matches) == 1
     assert matches[0].comparison_type == "cross_paper"
+    assert matches[0].match_id == "cross_paper-A-1-B-1"
     assert matches[0].level in {"高度重复", "疑似重复"}
 
 
@@ -82,3 +86,130 @@ def test_compare_against_history_bank_limits_top_matches_per_question() -> None:
     assert len(matches) == 1
     assert matches[0].comparison_type == "history_bank"
     assert matches[0].target_paper_label == "历史卷一"
+
+
+def test_lightweight_vector_similarity_scores_reordered_overlap() -> None:
+    score = lightweight_vector_similarity(
+        "process thread operating system difference",
+        "operating system thread and process difference",
+    )
+
+    assert score >= 90
+
+
+def test_lightweight_vector_similarity_scores_chinese_reordered_overlap() -> None:
+    score = lightweight_vector_similarity(
+        "请说明操作系统中进程与线程的主要区别。",
+        "操作系统里线程和进程有什么区别？请说明。",
+    )
+
+    assert score >= 85
+
+
+def test_lightweight_vector_similarity_keeps_unrelated_chinese_low() -> None:
+    score = lightweight_vector_similarity(
+        "请简述春天的特点。",
+        "计算长方形面积。",
+    )
+
+    assert score < 30
+
+
+def test_compare_against_history_bank_can_match_by_lightweight_vector() -> None:
+    source_questions = [
+        build_question("A", 1, "1", "process thread operating system difference"),
+    ]
+    history_questions = [
+        build_question("H1", 1, "1", "operating system thread and process difference"),
+    ]
+
+    matches = compare_against_history_bank(
+        source_questions,
+        history_questions,
+        threshold=90,
+    )
+
+    assert len(matches) == 1
+    assert matches[0].comparison_type == "history_bank"
+    assert matches[0].similarity_score >= 90
+    assert matches[0].match_id.startswith("history_bank-vector-")
+
+
+def test_compare_against_history_bank_can_match_chinese_by_lightweight_vector() -> None:
+    source_questions = [
+        build_question("A", 1, "1", "请说明操作系统中进程与线程的主要区别。"),
+    ]
+    history_questions = [
+        build_question("H1", 1, "1", "操作系统里线程和进程有什么区别？请说明。"),
+    ]
+
+    matches = compare_against_history_bank(
+        source_questions,
+        history_questions,
+        threshold=85,
+    )
+
+    assert len(matches) == 1
+    assert matches[0].match_id.startswith("history_bank-vector-")
+
+
+def test_compare_against_history_bank_does_not_match_unrelated_chinese_by_vector() -> None:
+    source_questions = [
+        build_question("A", 1, "1", "请简述春天的特点。"),
+    ]
+    history_questions = [
+        build_question("H1", 1, "1", "计算长方形面积。"),
+    ]
+
+    matches = compare_against_history_bank(
+        source_questions,
+        history_questions,
+        threshold=85,
+    )
+
+    assert matches == []
+
+
+def test_compare_against_history_bank_can_disable_lightweight_vector() -> None:
+    source_questions = [
+        build_question("A", 1, "1", "process thread operating system difference"),
+    ]
+    history_questions = [
+        build_question("H1", 1, "1", "operating system thread and process difference"),
+    ]
+
+    matches = compare_against_history_bank(
+        source_questions,
+        history_questions,
+        threshold=90,
+        use_lightweight_vector=False,
+    )
+
+    assert matches == []
+
+
+def test_image_placeholders_do_not_create_duplicate_matches() -> None:
+    source_questions = [
+        build_question("A", 1, "1", "[IMAGE page=1 index=1 bbox=0,0,100,100]"),
+    ]
+    history_questions = [
+        build_question("H1", 1, "1", "[IMAGE page=1 index=1 bbox=0,0,100,100]"),
+    ]
+
+    matches = compare_against_history_bank(source_questions, history_questions)
+
+    assert matches == []
+    assert normalize_for_compare(source_questions[0].content) == ""
+
+
+def test_ocr_marker_is_ignored_but_ocr_text_still_compares() -> None:
+    source_questions = [
+        build_question("A", 1, "1", "[IMAGE page=1 index=1 bbox=0,0,100,100]\n[OCR_TEXT]\n请简述春天的特点。"),
+    ]
+    history_questions = [
+        build_question("H1", 1, "1", "请简述春天的特点。"),
+    ]
+
+    matches = compare_against_history_bank(source_questions, history_questions)
+
+    assert len(matches) == 1

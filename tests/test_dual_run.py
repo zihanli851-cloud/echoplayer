@@ -263,6 +263,8 @@ def test_report_builder_marks_code_only_and_score_difference() -> None:
             order=1,
             content="小明以 5m/s 的速度前进 10 秒，求路程。",
             raw_block="小明以 5m/s 的速度前进 10 秒，求路程。",
+            split_confidence=0.35,
+            split_warning="未识别到明确题号，已按整段文本兜底切为单题，请人工复核。",
         ),
         Question(
             question_id="B-1",
@@ -344,7 +346,40 @@ def test_report_builder_marks_code_only_and_score_difference() -> None:
 
     assert context["spellcheck_rows"][0]["compare_status"] == "代码独有"
     assert context["duplicate_rows"][0]["compare_status"] == "评分不同"
+    assert context["question_quality_rows"][0]["paper_label"] == "A 卷"
+    assert "人工复核" in context["question_quality_rows"][0]["warning"]
+    assert context["export_payload"]["question_quality"][0]["question_no"] == "1"
     assert any(section["status"] == "Agent 未返回" for section in context["dual_run_sections"])
+
+
+def test_report_builder_exports_question_quality_without_dual_run() -> None:
+    report_builder = ReportBuilder()
+    questions = [
+        Question(
+            question_id="A-1",
+            paper_id="A",
+            question_no="1",
+            order=1,
+            content="无题号兜底内容",
+            raw_block="无题号兜底内容",
+            split_confidence=0.35,
+            split_warning="未识别到明确题号，已按整段文本兜底切为单题，请人工复核。",
+        )
+    ]
+    report = report_builder.build_report(
+        teacher_name="李老师",
+        teacher_id="T001",
+        subject="语文",
+        uploaded_papers=[],
+        questions=questions,
+        similarity_matches=[],
+        spellcheck_issues=[],
+    )
+
+    context = report_builder.build_template_context(report)
+
+    assert context["question_quality_rows"][0]["question_no"] == "1"
+    assert context["export_payload"]["question_quality"][0]["confidence"] == 0.35
 
 
 def test_report_builder_shows_agent_errors_instead_of_matching_code_results() -> None:
@@ -506,6 +541,7 @@ def test_review_route_renders_dual_run_report(monkeypatch) -> None:
         return code_result, agent_result
 
     monkeypatch.setattr(DualRunReviewService, "run", fake_run)
+    monkeypatch.setenv("ENABLE_ASYNC_AGENT", "false")
 
     with TestClient(app) as client:
         client.app.state.history_bank_service = FakeHistoryService()
