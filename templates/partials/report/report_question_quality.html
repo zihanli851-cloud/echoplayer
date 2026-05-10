@@ -1,0 +1,39 @@
+<section class="section section-anchor" id="section-question-quality" data-risk-level="suspect" data-paper-scope="all">
+  <div class="section-head">
+    <div>
+      <h2>切题复核提示</h2>
+      <p>列出规则切题置信度偏低的题目，方便人工优先检查是否漏切或误切。</p>
+    </div>
+  </div>
+
+  {% if question_quality_rows %}
+  <div class="table-shell">
+    <table>
+      <thead>
+        <tr>
+          <th>来源</th>
+          <th>题号</th>
+          <th>置信度</th>
+          <th>提示</th>
+          <th>内容预览</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in question_quality_rows %}
+        <tr>
+          <td>{{ row.paper_label }}</td>
+          <td>{{ row.question_no }}</td>
+          <td>{{ row.confidence }}</td>
+          <td>{{ row.warning }}</td>
+          <td>{{ row.content_preview }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  {% with message="当前代码版切题结果未发现需要优先复核的低置信度提示。" %}
+  {% include 'partials/shared/empty_state.html' %}
+  {% endwith %}
+  {% endif %}
+</section>

@@ -1,0 +1,13 @@
+###QUESTION### paper_id: H92 | paper_label: (19-20-2)+经济信息工程学院+离散数学+李莹芳+B | subject: 离散数学 | question_no: 一 | order: 1 | content: 子路约颜回第2天去听评书，颜回说：“如果明天不下雨，我去书院读书”，结果第 [NL] 2天下起了雨，子路想：颜回一定不去书院读书了，所以去找颜回听评书，谁知颜回仍 [NL] 然去了书院读书，子路责备颜回食言，颜回却说自己没错，试判断究竟谁是谁非。 [NL] 请问： ###END###
+###QUESTION### paper_id: H92 | paper_label: (19-20-2)+经济信息工程学院+离散数学+李莹芳+B | subject: 离散数学 | question_no: 1 | order: 2 | content: 在求解此题的过程中使用了命题逻辑中的哪些概念？ ###END###
+###QUESTION### paper_id: H92 | paper_label: (19-20-2)+经济信息工程学院+离散数学+李莹芳+B | subject: 离散数学 | question_no: 2 | order: 3 | content: 在求解此题的过程中使用了命题逻辑中的哪些方法？ ###END###
+###QUESTION### paper_id: H92 | paper_label: (19-20-2)+经济信息工程学院+离散数学+李莹芳+B | subject: 离散数学 | question_no: 3 | order: 4 | content: 利用命题逻辑中的方法，判断究竟谁是谁非？（仅写答案不得分）（20分） ###END###
+###QUESTION### paper_id: H92 | paper_label: (19-20-2)+经济信息工程学院+离散数学+李莹芳+B | subject: 离散数学 | question_no: 二 | order: 5 | content: 在语言描述的过程中，经常会有繁杂多余的语句，使得语言不易被人理解，这时 [NL] 可以利用数理逻辑的知识来帮助理解其含义。有一段话：“如果张衡去打球则王旦不 [NL] 去，如果王旦去则李耳就不去，如果张衡不去则李耳去，如果张衡去则李耳不去。”， [NL] 如何利用数理逻辑的知识判断出王旦到底去不去打球？（仅写答案不得分）（20分） ###END###
+###QUESTION### paper_id: H92 | paper_label: (19-20-2)+经济信息工程学院+离散数学+李莹芳+B | subject: 离散数学 | question_no: 三 | order: 6 | content: 数学证明中许多常用的证明方法的合理性用语言叙述起来显得抽象不易理解，但 [NL] 如果用命题逻辑或谓词逻辑的知识去证明就比较清晰准确，请用谓词逻辑的思想证明 [NL] 数学归纳法的合理性。（仅写答案不得分）（20分） ###END###
+###QUESTION### paper_id: H92 | paper_label: (19-20-2)+经济信息工程学院+离散数学+李莹芳+B | subject: 离散数学 | question_no: 四 | order: 7 | content: 集合不仅可以表示数，还可以像数一样进行运算，更可以用于非数值信息的表示 [NL] 和处理。 [NL] 请问： ###END###
+###QUESTION### paper_id: H92 | paper_label: (19-20-2)+经济信息工程学院+离散数学+李莹芳+B | subject: 离散数学 | question_no: 1 | order: 8 | content: 在本学期的学习中，哪些知识点或概念结合了集合论的思想，请列举出来，并举例 [NL] 说明具体结合的点。 ###END###
+###QUESTION### paper_id: H92 | paper_label: (19-20-2)+经济信息工程学院+离散数学+李莹芳+B | subject: 离散数学 | question_no: 2 | order: 9 | content: 假设R是定义在集合A上的关系，|A|=n。在集合A上构造的所有关系中，求解： [NL] （仅写答案不得分） [NL] （1）满足自反性、反自反性、对称性、反对称性的关系有多少？ [NL] （2）既不满足自反性，又不满足反自反性的关系有多少？ [NL] （3）同时满足对称性和反对称性的关系有多少？ [NL] （4）既不满足对称性，又不满足反对称性的关系有多少？ ###END###
+###QUESTION### paper_id: H92 | paper_label: (19-20-2)+经济信息工程学院+离散数学+李莹芳+B | subject: 离散数学 | question_no: 3 | order: 10 | content: 举例说明，关系理论在计算机科学中有什么应用？（20分） ###END###
+###QUESTION### paper_id: H92 | paper_label: (19-20-2)+经济信息工程学院+离散数学+李莹芳+B | subject: 离散数学 | question_no: 五 | order: 11 | content: 在图论中，图是指某类具体离散事物的集合和反映该集合中的每对事物间以某种 [NL] 方式相联系的数学模型。试用图论的知识解决以下问题： ###END###
+###QUESTION### paper_id: H92 | paper_label: (19-20-2)+经济信息工程学院+离散数学+李莹芳+B | subject: 离散数学 | question_no: 1 | order: 12 | content: 握手定理可以解决什么实际问题？ ###END###
+###QUESTION### paper_id: H92 | paper_label: (19-20-2)+经济信息工程学院+离散数学+李莹芳+B | subject: 离散数学 | question_no: 2 | order: 13 | content: 证明3维空间中不存在具有奇数个面且每个面都具有奇数条棱的多面体。 [NL] （仅写答案不得分）（20分） ###END###

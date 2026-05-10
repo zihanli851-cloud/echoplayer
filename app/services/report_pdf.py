@@ -10,8 +10,6 @@ import textwrap
 PAGE_WIDTH = 595
 PAGE_HEIGHT = 842
 MARGIN_X = 48
-START_Y = 790
-LINE_HEIGHT = 17
 MAX_LINES_PER_PAGE = 43
 
 
@@ -42,6 +40,10 @@ def _build_report_lines(payload: dict) -> list[str]:
     spellcheck_context = payload.get("spellcheck_comparison", {}) if isinstance(payload, dict) else {}
     history_bank = payload.get("history_bank", {}) if isinstance(payload, dict) else {}
     dual_run_sections = payload.get("dual_run_sections", []) if isinstance(payload, dict) else []
+    same_source_matches = payload.get("same_source_matches", []) if isinstance(payload, dict) else []
+    parse_quality = payload.get("parse_quality", []) if isinstance(payload, dict) else []
+    question_quality = payload.get("question_quality", []) if isinstance(payload, dict) else []
+    complex_question_quality = payload.get("complex_question_quality", []) if isinstance(payload, dict) else []
 
     lines = [
         "EchoPaper 智能审查报告",
@@ -55,6 +57,7 @@ def _build_report_lines(payload: dict) -> list[str]:
         f"B 卷题目数：{dashboard.get('paper_b_question_count', 0)}",
         f"高度重复：{_sum_dashboard(dashboard, ['paper_a_internal_high', 'paper_b_internal_high', 'cross_paper_high', 'history_high'])}",
         f"疑似重复：{dashboard.get('suspected_duplicate_total', 0)}",
+        f"疑似原题/同源题：{dashboard.get('same_source_total', 0)}",
         f"历史题库命中：{dashboard.get('history_match_total', 0)}",
         f"错字/标点问题：{dashboard.get('spellcheck_issue_total', 0)}",
         f"待人工复核：{dashboard.get('pending_review_total', 0)}",
@@ -70,22 +73,84 @@ def _build_report_lines(payload: dict) -> list[str]:
     else:
         lines.append("- 无上传试卷信息")
 
-    lines.extend(["", "三、历史题库"])
-    if history_bank:
-        lines.extend(
-            [
-                f"目录：{history_bank.get('bank_dir', '')}",
-                f"PDF 文件：{history_bank.get('total_files', 0)}",
-                f"成功加载：{history_bank.get('loaded_files', 0)}",
-                f"题目总数：{history_bank.get('question_count', 0)}",
-            ]
-        )
-        if history_bank.get("load_error"):
-            lines.append(f"加载错误：{history_bank.get('load_error')}")
+    lines.extend(["", "三、解析风险提示"])
+    if parse_quality:
+        for index, row in enumerate(parse_quality[:8], start=1):
+            lines.extend(
+                [
+                    (
+                        f"{index}. {row.get('paper_label', '')} | 风险：{row.get('risk_level', '')} | "
+                        f"OCR：{row.get('ocr_status', '')} | 图片数：{row.get('image_count', 0)}"
+                    ),
+                    f"   文件：{row.get('filename', '')}",
+                    f"   原因：{row.get('risk_reason', '')}",
+                    f"   备注：{row.get('parse_note', '')}",
+                ]
+            )
+        if len(parse_quality) > 8:
+            lines.append(f"... 其余 {len(parse_quality) - 8} 条解析风险明细请查看页面 JSON。")
     else:
-        lines.append("未提供历史题库摘要。")
+        lines.append("- 未发现需要额外提示的解析风险。")
 
-    lines.extend(["", "四、查重摘要"])
+    lines.extend(["", "四、低置信度切题提示"])
+    if question_quality:
+        for index, row in enumerate(question_quality[:8], start=1):
+            lines.extend(
+                [
+                    (
+                        f"{index}. {row.get('paper_label', '')}第 {row.get('question_no', '')} 题 | "
+                        f"置信度：{row.get('confidence', '')}"
+                    ),
+                    f"   提示：{row.get('warning', '')}",
+                    f"   预览：{row.get('content_preview', '')}",
+                ]
+            )
+        if len(question_quality) > 8:
+            lines.append(f"... 其余 {len(question_quality) - 8} 条切题提示请查看页面 JSON。")
+    else:
+        lines.append("- 未发现低置信度切题结果。")
+
+    lines.extend(["", "五、疑似原题 / 同源题"])
+    if same_source_matches:
+        for index, row in enumerate(same_source_matches[:8], start=1):
+            score = row.get("final_score", row.get("score", ""))
+            lines.extend(
+                [
+                    (
+                        f"{index}. {row.get('comparison_label', '')} | {row.get('same_source_flag', '')} | "
+                        f"综合分：{score}% | 字面分：{row.get('literal_score', '')}% | "
+                        f"模板分：{row.get('template_score', '')}%"
+                    ),
+                    f"   对比：{row.get('source_label', '')} -> {row.get('target_label', '')}",
+                    f"   原因：{row.get('reason', '')}",
+                    f"   复核：{row.get('review_status', '')}",
+                ]
+            )
+        if len(same_source_matches) > 8:
+            lines.append(f"... 其余 {len(same_source_matches) - 8} 条疑似原题结果请查看页面 JSON。")
+    else:
+        lines.append("- 未发现疑似原题或同源题。")
+
+    lines.extend(["", "六、复杂题复核提示"])
+    if complex_question_quality:
+        for index, row in enumerate(complex_question_quality[:8], start=1):
+            lines.extend(
+                [
+                    (
+                        f"{index}. {row.get('paper_label', '')}第 {row.get('question_no', '')} 题 | "
+                        f"{row.get('flag_summary', '')} | 风险：{row.get('review_level', '')}"
+                    ),
+                    f"   依据：{row.get('detail', '')}",
+                    f"   原因：{row.get('reason', '')}",
+                    f"   建议：{row.get('recommendation', '')}",
+                ]
+            )
+        if len(complex_question_quality) > 8:
+            lines.append(f"... 其余 {len(complex_question_quality) - 8} 条复杂题提示请查看页面 JSON。")
+    else:
+        lines.append("- 未发现需要单独提示的图片题、图表题或复杂公式题。")
+
+    lines.extend(["", "七、查重摘要"])
     duplicate_summary = duplicate_context.get("summary", {}) if isinstance(duplicate_context, dict) else {}
     lines.extend(
         [
@@ -104,7 +169,7 @@ def _build_report_lines(payload: dict) -> list[str]:
     if len(duplicate_rows) > 8:
         lines.append(f"... 其余 {len(duplicate_rows) - 8} 条查重明细请查看页面 JSON。")
 
-    lines.extend(["", "五、错字检查摘要"])
+    lines.extend(["", "八、错字检查摘要"])
     spellcheck_summary = spellcheck_context.get("summary", {}) if isinstance(spellcheck_context, dict) else {}
     lines.extend(
         [
@@ -122,7 +187,22 @@ def _build_report_lines(payload: dict) -> list[str]:
     if len(spellcheck_rows) > 8:
         lines.append(f"... 其余 {len(spellcheck_rows) - 8} 条错字明细请查看页面 JSON。")
 
-    lines.extend(["", "六、双链路模块状态"])
+    lines.extend(["", "九、历史题库"])
+    if history_bank:
+        lines.extend(
+            [
+                f"目录：{history_bank.get('bank_dir', '')}",
+                f"PDF 文件：{history_bank.get('total_files', 0)}",
+                f"成功加载：{history_bank.get('loaded_files', 0)}",
+                f"题目总数：{history_bank.get('question_count', 0)}",
+            ]
+        )
+        if history_bank.get("load_error"):
+            lines.append(f"加载错误：{history_bank.get('load_error')}")
+    else:
+        lines.append("- 未提供历史题库摘要。")
+
+    lines.extend(["", "十、双链路模块状态"])
     if dual_run_sections:
         for section in dual_run_sections:
             lines.append(

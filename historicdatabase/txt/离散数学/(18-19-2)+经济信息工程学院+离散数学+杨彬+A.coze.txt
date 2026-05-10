@@ -1,0 +1,21 @@
+###QUESTION### paper_id: H89 | paper_label: (18-19-2)+经济信息工程学院+离散数学+杨彬+A | subject: 离散数学 | question_no: 1 | order: 1 | content: 下列命题中真值为1的命题是（ ） [NL] A. 猴子会爬树当且仅当1+2≠3 B. 猴子会爬树当且仅当2+2=3 [NL] C. 猴子不会爬树当且仅当1+2=3 D. 猴子不会爬树当且仅当1+2≠3 ###END###
+###QUESTION### paper_id: H89 | paper_label: (18-19-2)+经济信息工程学院+离散数学+杨彬+A | subject: 离散数学 | question_no: 2 | order: 2 | content: 下述公式中不是永真式的是（ ） [NL] A. ¬(P → Q) → ¬Q B. (P → Q) ∨ P [NL] C. (P → Q) → P D. P → (Q → P) ###END###
+###QUESTION### paper_id: H89 | paper_label: (18-19-2)+经济信息工程学院+离散数学+杨彬+A | subject: 离散数学 | question_no: 3 | order: 3 | content: 设个体域为实数集，(∀x)(∃y)(x∗y = ###END###
+###QUESTION### paper_id: H89 | paper_label: (18-19-2)+经济信息工程学院+离散数学+杨彬+A | subject: 离散数学 | question_no: 1 | order: 4 | content: 的真值是（ ） [NL] A. 1 B. 0 C. 可满足式 D. 无法判断 ###END###
+###QUESTION### paper_id: H89 | paper_label: (18-19-2)+经济信息工程学院+离散数学+杨彬+A | subject: 离散数学 | question_no: 4 | order: 5 | content: 结点数为5的无向简单图有7条边，则它的补图有多少条边?（ ） [NL] A. 3 B. 4 C. 5 D. 6 ###END###
+###QUESTION### paper_id: H89 | paper_label: (18-19-2)+经济信息工程学院+离散数学+杨彬+A | subject: 离散数学 | question_no: 5 | order: 6 | content: 有集合A={a,b,c}上的关系如下，其中具有传递性的是（ ） [NL] A. {< a, c > , < c, a > , < a, b > , < b, a >} B. {< a, c > , < c, a >} [NL] C. {< a, b > , < c, c > , < b, a > , < b, c >} D. {< a, a >} ###END###
+###QUESTION### paper_id: H89 | paper_label: (18-19-2)+经济信息工程学院+离散数学+杨彬+A | subject: 离散数学 | question_no: 1 | order: 7 | content: 公式(∃x)(P(x) ∨ Q(x))的解释I为：个体域D={2, ###END###
+###QUESTION### paper_id: H89 | paper_label: (18-19-2)+经济信息工程学院+离散数学+杨彬+A | subject: 离散数学 | question_no: 4 | order: 8 | content: 5}，P(x):x < 4，Q(x):√x > 2，则它 [NL] 的真值是 。 ###END###
+###QUESTION### paper_id: H89 | paper_label: (18-19-2)+经济信息工程学院+离散数学+杨彬+A | subject: 离散数学 | question_no: 2 | order: 9 | content: (1, [NL] 能否成为无向图的度数序列？如果不能，请说明理由；如果能，请画出一 [NL] 个对应的图，并且在结点处标明该结点的度数 。 ###END###
+###QUESTION### paper_id: H89 | paper_label: (18-19-2)+经济信息工程学院+离散数学+杨彬+A | subject: 离散数学 | question_no: 3 | order: 10 | content: 设在集合A={a, b, c, d}上，有二元关系R={< a, b > , < b, a > , < b, c > , < c, d >}，则其 [NL] r(R)= ，s(R)= 。 ###END###
+###QUESTION### paper_id: H89 | paper_label: (18-19-2)+经济信息工程学院+离散数学+杨彬+A | subject: 离散数学 | question_no: 4 | order: 11 | content: 在集合A={1, ###END###
+###QUESTION### paper_id: H89 | paper_label: (18-19-2)+经济信息工程学院+离散数学+杨彬+A | subject: 离散数学 | question_no: 2 | order: 12 | content: 3}上，共有 种不同的反自反关系，共有 种不同的等价关系 ###END###
+###QUESTION### paper_id: H89 | paper_label: (18-19-2)+经济信息工程学院+离散数学+杨彬+A | subject: 离散数学 | question_no: 5 | order: 13 | content: 下面的几个图中， 是强连通图， 是单向连通图。 ###END###
+###QUESTION### paper_id: H89 | paper_label: (18-19-2)+经济信息工程学院+离散数学+杨彬+A | subject: 离散数学 | question_no: 1 | order: 14 | content: （10分）求公式 (P → Q) → (P ∨ ¬R) 的主合取范式和主析取范式，结果用𝑚 和𝑀 的 [NL] 𝑖 𝑖 [NL] 形式表示。 ###END###
+###QUESTION### paper_id: H89 | paper_label: (18-19-2)+经济信息工程学院+离散数学+杨彬+A | subject: 离散数学 | question_no: 2 | order: 15 | content: （10分）求公式 (∃x)P(x, y) → (Q(x) → ¬(∃y)R(x, y)) 前束范式。 ###END###
+###QUESTION### paper_id: H89 | paper_label: (18-19-2)+经济信息工程学院+离散数学+杨彬+A | subject: 离散数学 | question_no: 3 | order: 16 | content: （10分）设A={1, [NL] 4}，定义在A上的关系 R 如下： [NL] R={< 1, 4 > , < 2, 3 > , < 3, 1 > , < 4, 3 >} [NL] （1） （4分）画出R的关系图，并写出R的关系矩阵； [NL] （2） （6分）分别用关系图和Warshall算法这两种方法来求t(R)。 ###END###
+###QUESTION### paper_id: H89 | paper_label: (18-19-2)+经济信息工程学院+离散数学+杨彬+A | subject: 离散数学 | question_no: 1 | order: 17 | content: （9分）令A=𝑁 × 𝑁，这里𝑁为自然数集，定义A上关系R： [NL] R={< < a, b > , < c, d > > | b = d} [NL] 证明R 为等价关系。 ###END###
+###QUESTION### paper_id: H89 | paper_label: (18-19-2)+经济信息工程学院+离散数学+杨彬+A | subject: 离散数学 | question_no: 2 | order: 18 | content: （9分）证明推理 P → (Q → R) ⊨ (Q → (R → S)) → (P → (Q → S)) 有效。 ###END###
+###QUESTION### paper_id: H89 | paper_label: (18-19-2)+经济信息工程学院+离散数学+杨彬+A | subject: 离散数学 | question_no: 3 | order: 19 | content: （9分）将下列推理符号化（个体域为全总个体域），并用演绎法进行证明： [NL] 每一个实数不是有理数就是无理数；有理数能表示成两个素数的商；不是每个实数都能 [NL] 表示成两个素数的商，所以有些实数是无理数。 ###END###
+###QUESTION### paper_id: H89 | paper_label: (18-19-2)+经济信息工程学院+离散数学+杨彬+A | subject: 离散数学 | question_no: 4 | order: 20 | content: （9分）证明：结点数为 n、边数为n+1的无向图 G中，必定存在结点 v，使得deg(v) ≥ 3。 ###END###
+###QUESTION### paper_id: H89 | paper_label: (18-19-2)+经济信息工程学院+离散数学+杨彬+A | subject: 离散数学 | question_no: 5 | order: 21 | content: （9分）定义R 上的二元运算*,使得∀a,b ∈ R，有：a*b=a+b+ab。 [NL] 证明： < R, * > 为独异点（即含幺半群）。 ###END###

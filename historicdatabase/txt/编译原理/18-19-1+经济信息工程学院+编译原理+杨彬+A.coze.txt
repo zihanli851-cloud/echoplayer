@@ -1,0 +1,12 @@
+###QUESTION### paper_id: H119 | paper_label: 18-19-1+经济信息工程学院+编译原理+杨彬+A | subject: 编译原理 | question_no: 1 | order: 1 | content: 语义分析后能否直接产生目标代码序列？这样做的困难和缺点是什么？ ###END###
+###QUESTION### paper_id: H119 | paper_label: 18-19-1+经济信息工程学院+编译原理+杨彬+A | subject: 编译原理 | question_no: 2 | order: 2 | content: 编译过程中为什么要使用符号表？它是在哪个阶段建立的？ ###END###
+###QUESTION### paper_id: H119 | paper_label: 18-19-1+经济信息工程学院+编译原理+杨彬+A | subject: 编译原理 | question_no: 3 | order: 3 | content: 语法分析方法一般分为哪两类，它们面对的主要问题是什么？ ###END###
+###QUESTION### paper_id: H119 | paper_label: 18-19-1+经济信息工程学院+编译原理+杨彬+A | subject: 编译原理 | question_no: 二 | order: 4 | content: 词法分析推导题（25分） [NL] 有正规式：1(0|1)*101 ###END###
+###QUESTION### paper_id: H119 | paper_label: 18-19-1+经济信息工程学院+编译原理+杨彬+A | subject: 编译原理 | question_no: 1 | order: 5 | content: 给出等价的NFA（10分） ###END###
+###QUESTION### paper_id: H119 | paper_label: 18-19-1+经济信息工程学院+编译原理+杨彬+A | subject: 编译原理 | question_no: 2 | order: 6 | content: 给出等价的DFA（10分） ###END###
+###QUESTION### paper_id: H119 | paper_label: 18-19-1+经济信息工程学院+编译原理+杨彬+A | subject: 编译原理 | question_no: 3 | order: 7 | content: 给出最小化的DFA（5分） ###END###
+###QUESTION### paper_id: H119 | paper_label: 18-19-1+经济信息工程学院+编译原理+杨彬+A | subject: 编译原理 | question_no: 三 | order: 8 | content: 语法分析推导题（25分） [NL] 有文法G(S)： [NL] S → (T) | a+S | a [NL] T → TbS | S [NL] 其中S、T为非终结符，a、b、+为终结符。 ###END###
+###QUESTION### paper_id: H119 | paper_label: 18-19-1+经济信息工程学院+编译原理+杨彬+A | subject: 编译原理 | question_no: 1 | order: 9 | content: 对该文法进行消除左递归、提左因子操作。（10分） ###END###
+###QUESTION### paper_id: H119 | paper_label: 18-19-1+经济信息工程学院+编译原理+杨彬+A | subject: 编译原理 | question_no: 2 | order: 10 | content: 计算每个非终结符的FIRST和FOLLOW集（10分） ###END###
+###QUESTION### paper_id: H119 | paper_label: 18-19-1+经济信息工程学院+编译原理+杨彬+A | subject: 编译原理 | question_no: 3 | order: 11 | content: 判断该文法经改写后是否是LL(1)文法，如果是则构造预测分析表（5分） ###END###
+###QUESTION### paper_id: H119 | paper_label: 18-19-1+经济信息工程学院+编译原理+杨彬+A | subject: 编译原理 | question_no: 1 | order: 12 | content: 请写出表达式 b*c+b*d 对应的后缀式、三地址码形式。 [NL] 简述编译的基本过程，以及其中每一步完成的功能 ###END###

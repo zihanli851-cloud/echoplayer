@@ -1,0 +1,98 @@
+<section class="section section-anchor is-collapsible is-expanded" id="section-duplicate-rows" data-risk-level="high" data-paper-scope="all">
+  <div class="section-head">
+    <div>
+      <h2>逐题重复明细</h2>
+      <p>主卡片展示代码版重复明细，并标注与 Agent 结果的对应状态。</p>
+    </div>
+    <button type="button" class="section-toggle" data-toggle-section="section-duplicate-rows">收起明细</button>
+  </div>
+
+  <div class="section-body">
+  {% if duplicate_rows %}
+  <div class="duplicate-list">
+    {% for row in duplicate_rows %}
+    <article class="duplicate-card">
+      <div class="duplicate-top">
+        <div>
+          <h3>{{ row.comparison_label }}</h3>
+          <div class="badge-row">
+            <span class="badge type">代码 {{ row.score }}%</span>
+            {% if row.agent_score is not none %}<span class="badge agent">Agent {{ row.agent_score }}%</span>{% endif %}
+            <span class="badge {% if row.level == '高度重复' %}high{% else %}suspect{% endif %}">{{ row.level }}</span>
+            <span class="badge {% if row.compare_status == '一致' %}type{% elif row.compare_status == '评分不同' %}info{% else %}suspect{% endif %}">{{ row.compare_status }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="compare-grid">
+        <section class="compare-pane">
+          <strong>{{ row.source_label }}</strong>
+          <div class="compare-text">{{ row.source_html | safe }}</div>
+        </section>
+        <section class="compare-pane">
+          <strong>{{ row.target_label }}</strong>
+          <div class="compare-text">{{ row.target_html | safe }}</div>
+        </section>
+      </div>
+
+      <div class="comparison-note"><p>{{ row.compare_note }}</p></div>
+
+      <div class="review-area">
+        <p>人工复核：请根据左/右差异高亮确认是否属于真实重复。</p>
+        <label>
+          <select name="review_status_{{ row.match_id }}" data-review-item-id="{{ row.review_item_id or '' }}" data-review-session-id="{{ row.review_session_id or '' }}">
+            {% for option in row.review_options %}
+            <option value="{{ option }}" {% if option == row.review_status %}selected{% endif %}>{{ option }}</option>
+            {% endfor %}
+          </select>
+          <span class="review-save-state" aria-live="polite"></span>
+        </label>
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+  {% else %}
+  {% with message="代码版当前未发现达到阈值的重复题目对。" %}
+  {% include 'partials/shared/empty_state.html' %}
+  {% endwith %}
+  {% endif %}
+
+  {% if agent_only_duplicate_rows %}
+  <div class="section" style="margin-top: 16px;">
+    <div class="section-head">
+      <div>
+        <h3>Agent 独有重复发现</h3>
+        <p>这些题目对只在 Agent 结果中出现，用于当前请求内的对照查看。</p>
+      </div>
+    </div>
+    <div class="duplicate-list">
+      {% for row in agent_only_duplicate_rows %}
+      <article class="duplicate-card">
+        <div class="duplicate-top">
+          <div>
+            <h4>{{ row.comparison_label }}</h4>
+            <div class="badge-row">
+              <span class="badge agent">Agent {{ row.score }}%</span>
+              <span class="badge {% if row.level == '高度重复' %}high{% else %}suspect{% endif %}">{{ row.level }}</span>
+              <span class="badge agent">{{ row.compare_status }}</span>
+            </div>
+          </div>
+        </div>
+        <div class="compare-grid">
+          <section class="compare-pane">
+            <strong>{{ row.source_label }}</strong>
+            <div class="compare-text">{{ row.source_html | safe }}</div>
+          </section>
+          <section class="compare-pane">
+            <strong>{{ row.target_label }}</strong>
+            <div class="compare-text">{{ row.target_html | safe }}</div>
+          </section>
+        </div>
+        <div class="comparison-note"><p>{{ row.compare_note }}</p></div>
+      </article>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+  </div>
+</section>

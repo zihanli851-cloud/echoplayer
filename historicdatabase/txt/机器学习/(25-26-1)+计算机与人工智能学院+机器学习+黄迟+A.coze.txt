@@ -1,0 +1,33 @@
+###QUESTION### paper_id: H77 | paper_label: (25-26-1)+计算机与人工智能学院+机器学习+黄迟+A | subject: 机器学习 | question_no: 1 | order: 1 | content: 以下哪项属于无监督学习任务？（ ） [NL] A. 邮件是否为垃圾邮件分类 B. 根据历史数据预测房价 [NL] C. 将客户按消费行为自动分组 D. 判断图像中是否有猫 ###END###
+###QUESTION### paper_id: H77 | paper_label: (25-26-1)+计算机与人工智能学院+机器学习+黄迟+A | subject: 机器学习 | question_no: 2 | order: 2 | content: 在逻辑回归中，通常使用哪种函数将线性输出映射为概率？（ ） [NL] A. ReLU B. sin C. sigmoid D. softmax ###END###
+###QUESTION### paper_id: H77 | paper_label: (25-26-1)+计算机与人工智能学院+机器学习+黄迟+A | subject: 机器学习 | question_no: 3 | order: 3 | content: 线性回归中，最小二乘法的目标是：（ ） [NL] A. 最小化预测值与真实值的绝对误差和 [NL] B. 最小化预测值与真实值的平方误差和 [NL] C. 最大化似然函数 D. 最小化模型参数的范数 ###END###
+###QUESTION### paper_id: H77 | paper_label: (25-26-1)+计算机与人工智能学院+机器学习+黄迟+A | subject: 机器学习 | question_no: 4 | order: 4 | content: KNN算法中，若k值过小，可能导致：（ ） [NL] A. 模型欠拟合 B. 模型过拟合 C. 计算速度变慢 D. 对噪声不敏感 ###END###
+###QUESTION### paper_id: H77 | paper_label: (25-26-1)+计算机与人工智能学院+机器学习+黄迟+A | subject: 机器学习 | question_no: 5 | order: 5 | content: 以下哪项不是决策树的特征选择指标？（ ） [NL] A. 信息增益 B. 基尼指数 C. 信息增益比 D. 欧氏距离 ###END###
+###QUESTION### paper_id: H77 | paper_label: (25-26-1)+计算机与人工智能学院+机器学习+黄迟+A | subject: 机器学习 | question_no: 6 | order: 6 | content: 支持向量机中，支持向量是指：（ ） [NL] A. 所有训练样本 B. 距离决策边界最近的样本 [NL] C. 类别标签错误的样本 D. 距离质心最近的样本 ###END###
+###QUESTION### paper_id: H77 | paper_label: (25-26-1)+计算机与人工智能学院+机器学习+黄迟+A | subject: 机器学习 | question_no: 7 | order: 7 | content: 在K-means聚类中，簇的“质心”是指：（ ） [NL] A. 簇中任意一个样本点 B. 簇中样本的中位数 [NL] C. 簇中样本的均值 D. 簇中离群点 ###END###
+###QUESTION### paper_id: H77 | paper_label: (25-26-1)+计算机与人工智能学院+机器学习+黄迟+A | subject: 机器学习 | question_no: 8 | order: 8 | content: 若某模型在训练集上表现很好，但在测试集上表现很差，说明该模型：（ ） [NL] A. 欠拟合 B. 过拟合 C. 泛化能力强 D. 数据不足 ###END###
+###QUESTION### paper_id: H77 | paper_label: (25-26-1)+计算机与人工智能学院+机器学习+黄迟+A | subject: 机器学习 | question_no: 9 | order: 9 | content: 以下哪种方法可用于防止决策树过拟合？（ ） [NL] A. 增加树的深度 B. 减少训练样本 C. 剪枝 D. 使用更多特征 ###END###
+###QUESTION### paper_id: H77 | paper_label: (25-26-1)+计算机与人工智能学院+机器学习+黄迟+A | subject: 机器学习 | question_no: 10 | order: 10 | content: 在朴素贝叶斯中，“朴素”指的是：（ ） [NL] A. 模型结构简单 B. 假设特征之间相互独立 [NL] C. 只适用于二分类 D. 不需要训练数据 ###END###
+###QUESTION### paper_id: H77 | paper_label: (25-26-1)+计算机与人工智能学院+机器学习+黄迟+A | subject: 机器学习 | question_no: 11 | order: 11 | content: 梯度下降法中，学习率过大可能导致：（ ） [NL] A. 收敛速度变慢 B. 无法收敛或震荡 C. 精度提高 D. 模型更稳定 [NL] 1 / 3 ###END###
+###QUESTION### paper_id: H77 | paper_label: (25-26-1)+计算机与人工智能学院+机器学习+黄迟+A | subject: 机器学习 | question_no: 12 | order: 12 | content: 以下哪种评估指标适用于多分类问题？（ ） [NL] A. macro-F1 B. Precision C. Recall D. F1-score ###END###
+###QUESTION### paper_id: H77 | paper_label: (25-26-1)+计算机与人工智能学院+机器学习+黄迟+A | subject: 机器学习 | question_no: 13 | order: 13 | content: 层次聚类中，凝聚式（Agglomerative）方法是从：（ ） [NL] A. 一个大簇逐步分裂 B. 每个样本作为一个簇逐步合并 [NL] C. 随机初始化簇中心 D. 使用KNN确定簇 ###END###
+###QUESTION### paper_id: H77 | paper_label: (25-26-1)+计算机与人工智能学院+机器学习+黄迟+A | subject: 机器学习 | question_no: 14 | order: 14 | content: 逻辑回归的损失函数通常采用：（ ） [NL] A. 均方误差 B. 绝对误差 C. 交叉熵 D. 合页损失 ###END###
+###QUESTION### paper_id: H77 | paper_label: (25-26-1)+计算机与人工智能学院+机器学习+黄迟+A | subject: 机器学习 | question_no: 15 | order: 15 | content: 在留出法中，通常将数据集划分为：（ ） [NL] A. 训练集、验证集、测试集 B. 训练集和测试集 [NL] C. k个子集轮流验证 D. 全部用于训练 ###END###
+###QUESTION### paper_id: H77 | paper_label: (25-26-1)+计算机与人工智能学院+机器学习+黄迟+A | subject: 机器学习 | question_no: 1 | order: 16 | content: 线性回归只能用于预测连续值。（ ） ###END###
+###QUESTION### paper_id: H77 | paper_label: (25-26-1)+计算机与人工智能学院+机器学习+黄迟+A | subject: 机器学习 | question_no: 2 | order: 17 | content: KNN算法不需要训练过程，属于“懒惰学习”。（ ） ###END###
+###QUESTION### paper_id: H77 | paper_label: (25-26-1)+计算机与人工智能学院+机器学习+黄迟+A | subject: 机器学习 | question_no: 3 | order: 18 | content: 决策树不能处理数值型特征。（ ） ###END###
+###QUESTION### paper_id: H77 | paper_label: (25-26-1)+计算机与人工智能学院+机器学习+黄迟+A | subject: 机器学习 | question_no: 4 | order: 19 | content: 支持向量机的支持向量数量比训练样本数量多。（ ） ###END###
+###QUESTION### paper_id: H77 | paper_label: (25-26-1)+计算机与人工智能学院+机器学习+黄迟+A | subject: 机器学习 | question_no: 5 | order: 20 | content: K-means对初始质心敏感，可能陷入局部最优。（ ） ###END###
+###QUESTION### paper_id: H77 | paper_label: (25-26-1)+计算机与人工智能学院+机器学习+黄迟+A | subject: 机器学习 | question_no: 6 | order: 21 | content: 逻辑回归输出的是类别标签，不是概率。（ ） ###END###
+###QUESTION### paper_id: H77 | paper_label: (25-26-1)+计算机与人工智能学院+机器学习+黄迟+A | subject: 机器学习 | question_no: 7 | order: 22 | content: 交叉验证可以更充分地利用数据评估模型。（ ） ###END###
+###QUESTION### paper_id: H77 | paper_label: (25-26-1)+计算机与人工智能学院+机器学习+黄迟+A | subject: 机器学习 | question_no: 8 | order: 23 | content: 朴素贝叶斯要求所有特征必须是离散的。（ ） ###END###
+###QUESTION### paper_id: H77 | paper_label: (25-26-1)+计算机与人工智能学院+机器学习+黄迟+A | subject: 机器学习 | question_no: 9 | order: 24 | content: 梯度下降法一定能找到全局最优解。（ ） ###END###
+###QUESTION### paper_id: H77 | paper_label: (25-26-1)+计算机与人工智能学院+机器学习+黄迟+A | subject: 机器学习 | question_no: 10 | order: 25 | content: 聚类算法需要处理的数据有标签。（ ） ###END###
+###QUESTION### paper_id: H77 | paper_label: (25-26-1)+计算机与人工智能学院+机器学习+黄迟+A | subject: 机器学习 | question_no: 1 | order: 26 | content: 过拟合 [NL] 测试集 ###END###
+###QUESTION### paper_id: H77 | paper_label: (25-26-1)+计算机与人工智能学院+机器学习+黄迟+A | subject: 机器学习 | question_no: 3 | order: 27 | content: 交叉验证 [NL] 损失函数 ###END###
+###QUESTION### paper_id: H77 | paper_label: (25-26-1)+计算机与人工智能学院+机器学习+黄迟+A | subject: 机器学习 | question_no: 5 | order: 28 | content: 支持向量 [NL] 为什么KNN被称为“懒惰学习”？其优缺点是什么？ ###END###
+###QUESTION### paper_id: H77 | paper_label: (25-26-1)+计算机与人工智能学院+机器学习+黄迟+A | subject: 机器学习 | question_no: 2 | order: 29 | content: 简述梯度下降法的基本思想及更新公式。 [NL] 2 / 3 ###END###
+###QUESTION### paper_id: H77 | paper_label: (25-26-1)+计算机与人工智能学院+机器学习+黄迟+A | subject: 机器学习 | question_no: 3 | order: 30 | content: 简述混淆矩阵中真正例（TP）、假正例（FP）、真反例（TN）、假反例（FN）的含 [NL] 义。 ###END###
+###QUESTION### paper_id: H77 | paper_label: (25-26-1)+计算机与人工智能学院+机器学习+黄迟+A | subject: 机器学习 | question_no: 4 | order: 31 | content: 简述线性回归与逻辑回归在模型结构上的主要区别。 ###END###
+###QUESTION### paper_id: H77 | paper_label: (25-26-1)+计算机与人工智能学院+机器学习+黄迟+A | subject: 机器学习 | question_no: 5 | order: 32 | content: 简述K-means聚类算法的基本步骤。 ###END###
+###QUESTION### paper_id: H77 | paper_label: (25-26-1)+计算机与人工智能学院+机器学习+黄迟+A | subject: 机器学习 | question_no: 1 | order: 33 | content: 已知训练数据：(天气 = 晴，风力 = 弱，打球 = 是)(天气 = 雨，风力 = 强，打球 [NL] = 否)(天气 = 晴，风力 = 强，打球 = 是)(天气 = 阴，风力 = 弱，打球 = 否) (天气 [NL] = 阴，风力 = 弱，打球 = 是)新样本：天气 = 阴，风力 = 强。用朴素贝叶斯方法判 [NL] 断是否打球。 [NL] 场景描述：某电商平台希望识别高价值客户（定义为年消费超过10万元），以便提供VIP [NL] 服务。现有数据包括：用户年龄、注册时长（月）、近3个月平均月消费额、是否使用优 [NL] 惠券（是/否）、浏览商品类别数、历史是否为高价值客户（标签）。 [NL] 问题：你认为还应补充哪些数据？（5分）你会选择哪种机器学习模型？说明理由。（5 [NL] 分）如何评估模型效果？请说明两个以上指标及其适用性。（5分） [NL] 3 / 3 ###END###

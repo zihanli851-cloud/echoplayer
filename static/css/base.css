@@ -1,0 +1,121 @@
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  color: var(--text);
+  background: var(--bg-main);
+}
+
+body.page-admin {
+  color: var(--text-strong);
+  background: var(--bg-admin);
+}
+
+a {
+  color: inherit;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  margin: 0;
+  line-height: 1.2;
+}
+
+p {
+  margin: 0;
+  line-height: 1.7;
+  color: var(--muted);
+}
+
+body.page-admin p {
+  color: var(--muted-strong);
+}
+
+pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: "Cascadia Code", Consolas, monospace;
+}
+
+mark {
+  padding: 0 2px;
+  border-radius: 4px;
+}
+
+@media print {
+  html {
+    scroll-behavior: auto;
+  }
+
+  body,
+  body.page-admin,
+  body.page-home,
+  body.page-report {
+    background: #fff !important;
+    color: #111 !important;
+  }
+
+  .top-nav,
+  .page-footer,
+  .actions,
+  .button-row,
+  button,
+  .secondary-link,
+  .open-link,
+  .job-status,
+  .watermark-layer {
+    display: none !important;
+  }
+
+  .page-shell,
+  .page-shell.page-shell--narrow,
+  .page-shell.page-shell--home,
+  .page-shell.page-shell--report {
+    width: 100% !important;
+    margin: 0;
+    padding: 0;
+  }
+
+  .card,
+  .panel,
+  .toolbar-card,
+  .risk-nav-card,
+  .appendix-card,
+  .review-focus-card,
+  .summary-card,
+  .duplicate-card,
+  .compare-pane,
+  .agent-detail-item,
+  .home-card,
+  .home-highlight-card,
+  .quick-entry-card,
+  .capability-card,
+  .admin-soft-card,
+  .admin-nav-card {
+    background: #fff !important;
+    box-shadow: none !important;
+    border: 1px solid #d0d7de !important;
+    break-inside: avoid;
+  }
+
+  a {
+    text-decoration: none;
+  }
+}

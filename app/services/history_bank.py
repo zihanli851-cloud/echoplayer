@@ -19,8 +19,15 @@ GENERIC_HISTORY_PARENT_NAMES = {
     "history_bank_verify_tmp2",
     "temp",
     "tmp",
+    "historicdatabase",
+    "txt",
+    "pdf",
 }
 PAPER_SIDE_NAMES = {"a", "b"}
+QUESTION_BLOCK_PATTERN = re.compile(
+    r"###QUESTION###\s*(.*?)\s*###END###",
+    re.DOTALL,
+)
 
 
 @dataclass
@@ -37,8 +44,6 @@ class HistoryBankSnapshot:
     failures: list[dict] = field(default_factory=list)
 
     def to_summary(self) -> dict:
-        """Build a template-friendly summary without the full question payload."""
-
         return {
             "bank_dir": self.bank_dir,
             "total_files": self.total_files,
@@ -50,8 +55,6 @@ class HistoryBankSnapshot:
         }
 
     def filtered_summary(self, *, subject: str = "", keyword: str = "") -> dict:
-        """Build a template summary filtered by subject and filename/label keyword."""
-
         summary = self.to_summary()
         subject = subject.strip()
         keyword = keyword.strip().lower()
@@ -67,12 +70,14 @@ class HistoryBankSnapshot:
                 for paper in papers
                 if keyword in str(paper.get("filename", "")).lower()
                 or keyword in str(paper.get("paper_label", "")).lower()
+                or keyword in str(paper.get("course", "")).lower()
             ]
             failures = [
                 failure
                 for failure in failures
                 if keyword in str(failure.get("filename", "")).lower()
                 or keyword in str(failure.get("paper_label", "")).lower()
+                or keyword in str(failure.get("course", "")).lower()
             ]
 
         subjects = sorted(
@@ -93,12 +98,11 @@ class HistoryBankSnapshot:
 
 class HistoryBankService:
     """
-    Loads and caches questions from the local `history_bank` directory.
+    Loads and caches questions from a local history bank.
 
-    The MVP keeps this service intentionally simple:
-    - only local PDF files are scanned
-    - parse failures are recorded and skipped
-    - results are cached in memory and refreshed when the directory changes
+    Supports two layouts:
+    - legacy single-directory PDF bank
+    - dual-source `historicdatabase/{txt,pdf}` bank
     """
 
     def __init__(
@@ -117,115 +121,91 @@ class HistoryBankService:
         self._cached_snapshot: HistoryBankSnapshot | None = None
 
     def get_snapshot(self, *, force_refresh: bool = False) -> HistoryBankSnapshot:
-        """Return a cached snapshot and refresh it when the directory changed."""
-
         signature = self._build_signature()
         if not force_refresh and self._cached_snapshot and signature == self._cached_signature:
             return self._cached_snapshot
-
         snapshot = self._load_snapshot()
         self._cached_signature = signature
         self._cached_snapshot = snapshot
         return snapshot
 
     def get_cached_or_directory_summary(self) -> HistoryBankSnapshot:
-        """
-        Return the parsed cache when available, otherwise a fast file-list summary.
-
-        The management page should not parse a large PDF bank just to render.
-        Explicit refreshes and review runs still call `get_snapshot()`.
-        """
-
         signature = self._build_signature()
         if self._cached_snapshot and signature == self._cached_signature:
             return self._cached_snapshot
 
-        pdf_files = self._list_pdf_files()
+        records = self._build_history_records()
+        papers = [
+            {
+                "paper_id": "",
+                "paper_label": record["paper_label"],
+                "subject": record["subject"],
+                "course": record["course"],
+                "filename": record["filename"],
+                "relative_path": record["relative_path"],
+                "page_count": "未扫描",
+                "question_count": "未扫描",
+                "source_key": record["source_key"],
+                "source_txt_path": record.get("source_txt_path"),
+                "source_pdf_path": record.get("source_pdf_path"),
+            }
+            for record in records
+            if record.get("source_pdf_path")
+        ]
         return HistoryBankSnapshot(
             bank_dir=str(self.bank_dir),
-            total_files=len(pdf_files),
+            total_files=len(records),
             loaded_files=0,
             failed_files=0,
             question_count=0,
-            papers=[
-                {
-                    "paper_id": "",
-                    "paper_label": pdf_path.stem,
-                    "subject": infer_history_subject(pdf_path, self.bank_dir),
-                    "filename": pdf_path.name,
-                    "relative_path": _relative_history_path(pdf_path, self.bank_dir),
-                    "page_count": "未扫描",
-                    "question_count": "未扫描",
-                }
-                for pdf_path in pdf_files
-            ],
+            papers=papers,
         )
 
     def invalidate_cache(self) -> None:
-        """Drop the parsed snapshot after file changes without parsing PDFs."""
-
         self._cached_signature = None
         self._cached_snapshot = None
 
     def _load_snapshot(self) -> HistoryBankSnapshot:
-        """Scan the history bank directory and build normalized question data."""
-
-        pdf_files = self._list_pdf_files()
+        records = self._build_history_records()
         snapshot = HistoryBankSnapshot(
             bank_dir=str(self.bank_dir),
-            total_files=len(pdf_files),
+            total_files=len(records),
         )
 
-        for index, pdf_path in enumerate(pdf_files, start=1):
+        for index, record in enumerate(records, start=1):
             paper_id = f"H{index}"
-            paper_label = pdf_path.stem
-            subject = infer_history_subject(pdf_path, self.bank_dir)
-            relative_path = _relative_history_path(pdf_path, self.bank_dir)
-
             try:
-                text_content, page_count = self.extraction_provider.extract(pdf_path)
-                questions = self.split_provider.split(
-                    text_content,
-                    paper_id,
-                    paper=UploadedPaper(
-                        paper_id=paper_id,
-                        filename=pdf_path.name,
-                        subject=subject,
-                        temp_path=str(pdf_path),
-                        text_content=text_content,
-                        page_count=page_count,
-                    ),
-                )
+                questions, page_count = self._load_record_questions(record, paper_id)
             except PdfParseError as exc:
                 snapshot.failed_files += 1
                 snapshot.failures.append(
                     {
-                        "filename": pdf_path.name,
-                        "paper_label": paper_label,
-                        "subject": subject,
-                        "relative_path": relative_path,
+                        "filename": record["filename"],
+                        "paper_label": record["paper_label"],
+                        "subject": record["subject"],
+                        "course": record["course"],
+                        "relative_path": record["relative_path"],
                         "reason": str(exc),
                     }
                 )
                 continue
 
-            normalized_questions = [
-                question.model_copy(update={"paper_label": paper_label})
-                for question in questions
-            ]
-
             snapshot.loaded_files += 1
-            snapshot.question_count += len(normalized_questions)
-            snapshot.questions.extend(normalized_questions)
+            snapshot.question_count += len(questions)
+            snapshot.questions.extend(questions)
             snapshot.papers.append(
                 {
                     "paper_id": paper_id,
-                    "paper_label": paper_label,
-                    "subject": subject,
-                    "filename": pdf_path.name,
-                    "relative_path": relative_path,
+                    "paper_label": record["paper_label"],
+                    "subject": record["subject"],
+                    "course": record["course"],
+                    "filename": record["filename"],
+                    "relative_path": record["relative_path"],
                     "page_count": page_count,
-                    "question_count": len(normalized_questions),
+                    "question_count": len(questions),
+                    "source_key": record["source_key"],
+                    "source_txt_path": record.get("source_txt_path"),
+                    "source_pdf_path": record.get("source_pdf_path"),
                 }
             )
 
@@ -243,25 +223,95 @@ class HistoryBankService:
         snapshot.questions = IndexedHistoryQuestions(snapshot.questions, vector_index=vector_index)
 
     def _build_signature(self) -> tuple:
-        """Build a lightweight directory signature for cache invalidation."""
+        records = self._build_history_records()
+        signature: list[tuple[str, int, int]] = []
+        for record in records:
+            for path_key in ("source_txt_path", "source_pdf_path"):
+                raw_path = record.get(path_key)
+                if not raw_path:
+                    continue
+                path = Path(raw_path)
+                if path.exists():
+                    stat = path.stat()
+                    signature.append((str(path), stat.st_size, stat.st_mtime_ns))
+        return tuple(sorted(signature))
 
-        pdf_files = self._list_pdf_files()
-        return tuple(
-            (path.name, path.stat().st_size, path.stat().st_mtime_ns)
-            for path in pdf_files
-        )
+    def _build_history_records(self) -> list[dict]:
+        dual_txt_dir = self.bank_dir / "txt"
+        dual_pdf_dir = self.bank_dir / "pdf"
+        if dual_txt_dir.exists() or dual_pdf_dir.exists():
+            return _build_dual_source_records(self.bank_dir)
 
-    def _list_pdf_files(self) -> list[Path]:
-        """Return all PDF files from the history bank directory in stable order."""
+        pdf_files = sorted(self.bank_dir.rglob("*.pdf"), key=lambda path: path.name.lower())
+        records: list[dict] = []
+        for pdf_path in pdf_files:
+            course = infer_history_subject(pdf_path, self.bank_dir)
+            paper_label = pdf_path.stem
+            records.append(
+                {
+                    "source_key": build_source_key(pdf_path.stem),
+                    "paper_label": paper_label,
+                    "subject": course,
+                    "course": course,
+                    "filename": pdf_path.name,
+                    "relative_path": _relative_history_path(pdf_path, self.bank_dir),
+                    "source_pdf_path": str(pdf_path),
+                    "source_txt_path": None,
+                }
+            )
+        return records
 
-        if not self.bank_dir.exists():
-            return []
-        return sorted(self.bank_dir.rglob("*.pdf"), key=lambda path: path.name.lower())
+    def _load_record_questions(self, record: dict, paper_id: str) -> tuple[list[Question], int]:
+        txt_path = record.get("source_txt_path")
+        pdf_path = record.get("source_pdf_path")
+
+        questions: list[Question] = []
+        page_count = 0
+
+        if txt_path:
+            questions = _parse_history_txt_file(Path(txt_path), paper_id, record)
+
+        if not questions and pdf_path:
+            text_content, page_count = self.extraction_provider.extract(Path(pdf_path))
+            questions = self.split_provider.split(
+                text_content,
+                paper_id,
+                paper=UploadedPaper(
+                    paper_id=paper_id,
+                    filename=record["filename"],
+                    subject=record["subject"],
+                    temp_path=str(pdf_path),
+                    text_content=text_content,
+                    page_count=page_count,
+                ),
+            )
+
+        normalized_questions = [
+            question.model_copy(
+                update={
+                    "paper_label": record["paper_label"],
+                    "source_key": record["source_key"],
+                    "course": record["course"],
+                    "source_txt_path": record.get("source_txt_path"),
+                    "source_pdf_path": record.get("source_pdf_path"),
+                }
+            )
+            for question in questions
+        ]
+        return normalized_questions, page_count
+
+
+def build_source_key(value: str) -> str:
+    compact = value.lower()
+    compact = compact.replace(".coze", "")
+    compact = compact.replace(".txt", "")
+    compact = compact.replace(".pdf", "")
+    compact = compact.replace("（", "(").replace("）", ")")
+    compact = re.sub(r"\s+", "", compact)
+    return compact
 
 
 def infer_history_subject(pdf_path: Path, bank_dir: Path | None = None) -> str:
-    """Infer subject from the EchoPaper history filename convention."""
-
     from_filename = _infer_subject_from_filename(pdf_path.stem)
     if from_filename:
         return from_filename
@@ -295,11 +345,104 @@ def _infer_subject_from_filename(stem: str) -> str:
 
 def _looks_like_year_term(value: str) -> bool:
     compact = re.sub(r"\s+", "", value)
-    return bool(re.fullmatch(r"[（(]?\d{2,4}-\d{2,4}-\d[）)]?", compact))
+    return bool(re.fullmatch(r"[（(]?\d{2,4}-\d{2,4}-\d[)）]?", compact))
 
 
-def _relative_history_path(pdf_path: Path, bank_dir: Path) -> str:
+def _relative_history_path(path: Path, bank_dir: Path) -> str:
     try:
-        return pdf_path.relative_to(bank_dir).as_posix()
+        return path.relative_to(bank_dir).as_posix()
     except ValueError:
-        return pdf_path.name
+        return path.name
+
+
+def _build_dual_source_records(bank_dir: Path) -> list[dict]:
+    txt_dir = bank_dir / "txt"
+    pdf_dir = bank_dir / "pdf"
+    record_map: dict[str, dict] = {}
+
+    if txt_dir.exists():
+        for txt_path in sorted(txt_dir.rglob("*.txt"), key=lambda path: path.name.lower()):
+            source_key = build_source_key(txt_path.stem)
+            course = infer_history_subject(txt_path, txt_dir)
+            record = record_map.setdefault(
+                source_key,
+                {
+                    "source_key": source_key,
+                    "paper_label": txt_path.stem,
+                    "subject": course,
+                    "course": course,
+                    "filename": txt_path.name,
+                    "relative_path": _relative_history_path(txt_path, bank_dir),
+                    "source_txt_path": None,
+                    "source_pdf_path": None,
+                },
+            )
+            record["source_txt_path"] = str(txt_path)
+            record["filename"] = txt_path.name
+            record["relative_path"] = _relative_history_path(txt_path, bank_dir)
+
+    if pdf_dir.exists():
+        for pdf_path in sorted(pdf_dir.rglob("*.pdf"), key=lambda path: path.name.lower()):
+            source_key = build_source_key(pdf_path.stem)
+            course = infer_history_subject(pdf_path, pdf_dir)
+            record = record_map.setdefault(
+                source_key,
+                {
+                    "source_key": source_key,
+                    "paper_label": pdf_path.stem,
+                    "subject": course,
+                    "course": course,
+                    "filename": pdf_path.name,
+                    "relative_path": _relative_history_path(pdf_path, bank_dir),
+                    "source_txt_path": None,
+                    "source_pdf_path": None,
+                },
+            )
+            record["paper_label"] = pdf_path.stem
+            record["subject"] = record.get("subject") or course
+            record["course"] = record.get("course") or course
+            record["source_pdf_path"] = str(pdf_path)
+            if not record.get("filename"):
+                record["filename"] = pdf_path.name
+            if not record.get("relative_path"):
+                record["relative_path"] = _relative_history_path(pdf_path, bank_dir)
+
+    return sorted(record_map.values(), key=lambda item: item["paper_label"].lower())
+
+
+def _parse_history_txt_file(txt_path: Path, paper_id: str, record: dict) -> list[Question]:
+    text = txt_path.read_text(encoding="utf-8", errors="ignore")
+    blocks = QUESTION_BLOCK_PATTERN.findall(text)
+    questions: list[Question] = []
+    for order, block in enumerate(blocks, start=1):
+        metadata = _parse_question_block(block)
+        content = metadata.get("content", "").replace("[NL]", "\n").strip()
+        if not content:
+            continue
+        question_no = str(metadata.get("question_no", order)).strip() or str(order)
+        questions.append(
+            Question(
+                question_id=f"{paper_id}-{order}",
+                paper_id=paper_id,
+                paper_label=record["paper_label"],
+                source_key=record["source_key"],
+                course=record["course"],
+                source_txt_path=str(txt_path),
+                source_pdf_path=record.get("source_pdf_path"),
+                question_no=question_no,
+                order=order,
+                content=content,
+                raw_block=content,
+            )
+        )
+    return questions
+
+
+def _parse_question_block(block: str) -> dict[str, str]:
+    metadata: dict[str, str] = {}
+    for part in block.split("|"):
+        if ":" not in part:
+            continue
+        key, value = part.split(":", 1)
+        metadata[key.strip()] = value.strip()
+    return metadata

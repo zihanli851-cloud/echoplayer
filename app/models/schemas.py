@@ -14,6 +14,11 @@ class UploadedPaper(BaseModel):
     pdf_url: str | None = None
     text_content: str = ""
     page_count: int = 0
+    image_count: int = 0
+    ocr_attempted: bool = False
+    ocr_succeeded: bool = False
+    requires_manual_review: bool = False
+    parse_note: str = ""
 
     model_config = ConfigDict(extra="ignore")
 
@@ -24,6 +29,10 @@ class Question(BaseModel):
     question_id: str
     paper_id: str
     paper_label: str | None = None
+    source_key: str = ""
+    course: str = ""
+    source_txt_path: str | None = None
+    source_pdf_path: str | None = None
     question_no: str
     order: int
     content: str
@@ -50,6 +59,10 @@ class SimilarityMatch(BaseModel):
     target_question_no: str
     target_text: str
     similarity_score: float
+    literal_score: float | None = None
+    template_score: float | None = None
+    final_score: float | None = None
+    is_same_source_question: bool = False
     level: str
     review_status: str = "待确认"
 

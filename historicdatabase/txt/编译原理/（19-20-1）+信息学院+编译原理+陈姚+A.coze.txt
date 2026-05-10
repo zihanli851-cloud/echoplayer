@@ -1,0 +1,8 @@
+###QUESTION### paper_id: H121 | paper_label: （19-20-1）+信息学院+编译原理+陈姚+A | subject: 编译原理 | question_no: 一 | order: 1 | content: 构造产生如下语言的上下文无关文法（20分）： ###END###
+###QUESTION### paper_id: H121 | paper_label: （19-20-1）+信息学院+编译原理+陈姚+A | subject: 编译原理 | question_no: 1 | order: 2 | content: {anbm | n ≥ ###END###
+###QUESTION### paper_id: H121 | paper_label: （19-20-1）+信息学院+编译原理+陈姚+A | subject: 编译原理 | question_no: 0 | order: 3 | content: m ≥ 3n ≥ m ≥ n} ###END###
+###QUESTION### paper_id: H121 | paper_label: （19-20-1）+信息学院+编译原理+陈姚+A | subject: 编译原理 | question_no: 2 | order: 4 | content: {anbmck | 0 ≤ n ≤ m+2k} ###END###
+###QUESTION### paper_id: H121 | paper_label: （19-20-1）+信息学院+编译原理+陈姚+A | subject: 编译原理 | question_no: 二 | order: 5 | content: 构造如下正规文法对应的最小 DFA（20 分）： [NL] S → aA | bQ [NL] A → aA | bB | 𝑏 [NL] B → bD | aQ [NL] Q → aQ | bD | 𝑏 [NL] D → bB | aA ###END###
+###QUESTION### paper_id: H121 | paper_label: （19-20-1）+信息学院+编译原理+陈姚+A | subject: 编译原理 | question_no: 三 | order: 6 | content: 判定下列文法是否是 LL(1)文法，如果是则构造 LL(1)分析表（20 分）： [NL] S → MH | a [NL] H → LSo | ε [NL] K → dML | ε [NL] L → eHf [NL] M → K | bLM ###END###
+###QUESTION### paper_id: H121 | paper_label: （19-20-1）+信息学院+编译原理+陈姚+A | subject: 编译原理 | question_no: 四 | order: 7 | content: 判定如下文法是否是算符优先文法，如果是则给出算符优先分析表（20分）： [NL] S → S;D | D [NL] D → D(T) | H [NL] H → a | (S) [NL] T → T+S | S ###END###
+###QUESTION### paper_id: H121 | paper_label: （19-20-1）+信息学院+编译原理+陈姚+A | subject: 编译原理 | question_no: 五 | order: 8 | content: 判定如下文法是否能由 LR(1)文法进行分析，如果能则构造相应的 LR(1)分析表 [NL] （20 分）： [NL] S → Aa | bAe | 𝐵𝑒 | 𝑏𝐵𝑎 [NL] A → d [NL] B → d ###END###

@@ -1,0 +1,17 @@
+<header class="page-header {% if header_class %}{{ header_class }}{% endif %}">
+  <div class="page-header__content">
+    {% if eyebrow %}<p class="page-header__eyebrow">{{ eyebrow }}</p>{% endif %}
+    <h1>{{ title }}</h1>
+    {% if description %}<p>{{ description }}</p>{% endif %}
+    {% if meta_items %}
+    <div class="page-header__meta">
+      {% for item in meta_items %}
+      <span class="pill">{{ item }}</span>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+  {% if actions_html %}
+  <div class="actions">{{ actions_html | safe }}</div>
+  {% endif %}
+</header>

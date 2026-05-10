@@ -1,0 +1,15 @@
+###QUESTION### paper_id: H127 | paper_label: （23-24-1)+计算机与人工智能学院+编译原理+陈姚+A | subject: 编译原理 | question_no: 1 | order: 1 | content: 西南财经大学本科期末考试试题册（A） [NL] （2023－2024学年第1学期） [NL] 以下各项由命题教师填写： [NL] 课程名称：编译原理 命题教师：陈姚、黄鹂 [NL] 适用对象：2021级计算机科学与技术 [NL] 使用试题的任课教师姓名：陈姚、黄鹂 [NL] 试题说明： [NL] 考试类型：闭卷[√] 开卷[] ###END###
+###QUESTION### paper_id: H127 | paper_label: （23-24-1)+计算机与人工智能学院+编译原理+陈姚+A | subject: 编译原理 | question_no: 2 | order: 2 | content: 本套试题共 6 道大题，共 2 页，完卷时间 120 分钟。 ###END###
+###QUESTION### paper_id: H127 | paper_label: （23-24-1)+计算机与人工智能学院+编译原理+陈姚+A | subject: 编译原理 | question_no: 3 | order: 3 | content: 考试用品中除纸、笔、尺子外，可另带的用具有： [NL] 计算器[√] 字典[] 等 [NL] （请在下划线上填上具体数字或内容，所选[]内打钩） [NL] 考试时间 ： [NL] （由制卷方填写） [NL] 以下各项由学生填写： [NL] 任课教师： 年级专业： [NL] 学生姓名： 学 号： [NL] 考生注意事项：1.出示学生证（或身份证）和准考证于桌面左上角，以备查验。 ###END###
+###QUESTION### paper_id: H127 | paper_label: （23-24-1)+计算机与人工智能学院+编译原理+陈姚+A | subject: 编译原理 | question_no: 2 | order: 4 | content: 拿到试卷后清点并检查试卷页数，如有重页、页数不足、空白页及印 [NL] 刷模糊等举手向监考教师示意调换试卷。 ###END###
+###QUESTION### paper_id: H127 | paper_label: （23-24-1)+计算机与人工智能学院+编译原理+陈姚+A | subject: 编译原理 | question_no: 3 | order: 5 | content: 答题前先将试题册及答题纸上的任课教师、专业、年级、学号、姓名 [NL] 填写完整。 ###END###
+###QUESTION### paper_id: H127 | paper_label: （23-24-1)+计算机与人工智能学院+编译原理+陈姚+A | subject: 编译原理 | question_no: 4 | order: 6 | content: 所有答案均需填写在答题纸上，答在试题册上无效。 ###END###
+###QUESTION### paper_id: H127 | paper_label: （23-24-1)+计算机与人工智能学院+编译原理+陈姚+A | subject: 编译原理 | question_no: 5 | order: 7 | content: 考生不得携带任何通讯工具进入考场。 ###END###
+###QUESTION### paper_id: H127 | paper_label: （23-24-1)+计算机与人工智能学院+编译原理+陈姚+A | subject: 编译原理 | question_no: 6 | order: 8 | content: 考试结束后，将试题册、答题纸和草稿纸等下发材料上交监考教师， [NL] 不得带离考场。 ###END###
+###QUESTION### paper_id: H127 | paper_label: （23-24-1)+计算机与人工智能学院+编译原理+陈姚+A | subject: 编译原理 | question_no: 7 | order: 9 | content: 严格遵守考场纪律。 ###END###
+###QUESTION### paper_id: H127 | paper_label: （23-24-1)+计算机与人工智能学院+编译原理+陈姚+A | subject: 编译原理 | question_no: 1 | order: 10 | content: 给出产生 语言的文法。（10分） ###END###
+###QUESTION### paper_id: H127 | paper_label: （23-24-1)+计算机与人工智能学院+编译原理+陈姚+A | subject: 编译原理 | question_no: 2 | order: 11 | content: 对于文法 ： [NL] a) 写出句型 的规范推导并画出语法树；（4分） [NL] b) 写出上述句型的短语、直接短语和句柄。（6分） ###END###
+###QUESTION### paper_id: H127 | paper_label: （23-24-1)+计算机与人工智能学院+编译原理+陈姚+A | subject: 编译原理 | question_no: 3 | order: 12 | content: 给定如下文法 ： [NL] a) 消除该文法左递归后的新文法 是LL(1)文法吗？（10分） [NL] b) 构造新文法 的预测分析表.（10分） ###END###
+###QUESTION### paper_id: H127 | paper_label: （23-24-1)+计算机与人工智能学院+编译原理+陈姚+A | subject: 编译原理 | question_no: 4 | order: 13 | content: 对于文法 ： [NL] a) 计算该文法中的一切可归前缀（5分）； [NL] b) 画出识别该文法活前缀的 DFA（5分）； [NL] c) 给出输入串 的SLR(1)分析表及分析过程。（10分） ###END###
+###QUESTION### paper_id: H127 | paper_label: （23-24-1)+计算机与人工智能学院+编译原理+陈姚+A | subject: 编译原理 | question_no: 5 | order: 14 | content: 给定如下将二进制无符号数转为十进制数的属性文法： [NL] a) 请以字符串101.101为例，给出该字符串的语法分析树；（10分） [NL] b) 保持语义不变的情况下消除左递归，给出自顶向下的语义计算翻译模式。(10分) ###END###
+###QUESTION### paper_id: H127 | paper_label: （23-24-1)+计算机与人工智能学院+编译原理+陈姚+A | subject: 编译原理 | question_no: 6 | order: 15 | content: 给出如下布尔表达式生成中间代码的L-翻译模式（不采用拉链回填技术）：（20分） [NL] 这里的rop表示某种关系运算符号（例如大于、小于、不等于）。 ###END###

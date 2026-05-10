@@ -1,0 +1,15 @@
+###QUESTION### paper_id: H132 | paper_label: （25-26-1）+计算机与人工智能学院+编译原理+陈姚、黄鹂+B | subject: 编译原理 | question_no: 1 | order: 1 | content: 西南财经大学本科期末考试试题册（B） [NL] （2025－2026学年第1学期） [NL] 以下各项由命题教师填写： [NL] 课程名称：编译原理 命题教师：陈姚、黄鹂 [NL] 适用对象：2023级计算机科学与技术 [NL] 使用试题的任课教师姓名：陈姚、黄鹂 [NL] 试题说明： [NL] 考试类型：闭卷[√] 开卷[] ###END###
+###QUESTION### paper_id: H132 | paper_label: （25-26-1）+计算机与人工智能学院+编译原理+陈姚、黄鹂+B | subject: 编译原理 | question_no: 2 | order: 2 | content: 本套试题共 6 道大题，共 1 页，完卷时间 120 分钟。 ###END###
+###QUESTION### paper_id: H132 | paper_label: （25-26-1）+计算机与人工智能学院+编译原理+陈姚、黄鹂+B | subject: 编译原理 | question_no: 3 | order: 3 | content: 考试用品中除纸、笔、尺子外，可另带的用具有： [NL] 计算器[√] 字典[] 等 [NL] （请在下划线上填上具体数字或内容，所选[]内打钩） [NL] 考试时间 ： [NL] （由制卷方填写） [NL] 以下各项由学生填写： [NL] 任课教师： 年级专业： [NL] 学生姓名： 学 号： [NL] 考生注意事项：1.出示学生证（或身份证）和准考证于桌面左上角，以备查验。 ###END###
+###QUESTION### paper_id: H132 | paper_label: （25-26-1）+计算机与人工智能学院+编译原理+陈姚、黄鹂+B | subject: 编译原理 | question_no: 2 | order: 4 | content: 拿到试卷后清点并检查试卷页数，如有重页、页数不足、空白页及印 [NL] 刷模糊等举手向监考教师示意调换试卷。 ###END###
+###QUESTION### paper_id: H132 | paper_label: （25-26-1）+计算机与人工智能学院+编译原理+陈姚、黄鹂+B | subject: 编译原理 | question_no: 3 | order: 5 | content: 答题前先将试题册及答题纸上的任课教师、专业、年级、学号、姓名 [NL] 填写完整。 ###END###
+###QUESTION### paper_id: H132 | paper_label: （25-26-1）+计算机与人工智能学院+编译原理+陈姚、黄鹂+B | subject: 编译原理 | question_no: 4 | order: 6 | content: 所有答案均需填写在答题纸上，答在试题册上无效。 ###END###
+###QUESTION### paper_id: H132 | paper_label: （25-26-1）+计算机与人工智能学院+编译原理+陈姚、黄鹂+B | subject: 编译原理 | question_no: 5 | order: 7 | content: 考生不得携带任何通讯工具进入考场。 ###END###
+###QUESTION### paper_id: H132 | paper_label: （25-26-1）+计算机与人工智能学院+编译原理+陈姚、黄鹂+B | subject: 编译原理 | question_no: 6 | order: 8 | content: 考试结束后，将试题册、答题纸和草稿纸等下发材料上交监考教师， [NL] 不得带离考场。 ###END###
+###QUESTION### paper_id: H132 | paper_label: （25-26-1）+计算机与人工智能学院+编译原理+陈姚、黄鹂+B | subject: 编译原理 | question_no: 7 | order: 9 | content: 严格遵守考场纪律 ###END###
+###QUESTION### paper_id: H132 | paper_label: （25-26-1）+计算机与人工智能学院+编译原理+陈姚、黄鹂+B | subject: 编译原理 | question_no: 1 | order: 10 | content: 设计一个可以用来检查括号匹配的文法：（15分） [NL] （1）请用最高文法限制进行构造； [NL] （2）描述该文法所属类型，并解释采用该文法类型的原因。 ###END###
+###QUESTION### paper_id: H132 | paper_label: （25-26-1）+计算机与人工智能学院+编译原理+陈姚、黄鹂+B | subject: 编译原理 | question_no: 2 | order: 11 | content: 构造一个DFA，使其能接受 上的正规集 ：每个1都有0直接跟在右边的字 [NL] 符串，并给出描述该字符串对应的正规式与正规文法。（15分） ###END###
+###QUESTION### paper_id: H132 | paper_label: （25-26-1）+计算机与人工智能学院+编译原理+陈姚、黄鹂+B | subject: 编译原理 | question_no: 3 | order: 12 | content: 证明文法不是 的，并构造一个等价文法使其是 的，并给出原因。（20分） ###END###
+###QUESTION### paper_id: H132 | paper_label: （25-26-1）+计算机与人工智能学院+编译原理+陈姚、黄鹂+B | subject: 编译原理 | question_no: 4 | order: 13 | content: 证明如下翻译模式的基础文法是LL(1)的，并给出相应的递归下降翻译程序。（15分） ###END###
+###QUESTION### paper_id: H132 | paper_label: （25-26-1）+计算机与人工智能学院+编译原理+陈姚、黄鹂+B | subject: 编译原理 | question_no: 5 | order: 14 | content: 给定文法：（20分） [NL] （1）构造识别该文法活前缀的DFA； [NL] （2）该文法是LR(0)的吗？是SLR(1)的吗？说明理由。 ###END###
+###QUESTION### paper_id: H132 | paper_label: （25-26-1）+计算机与人工智能学院+编译原理+陈姚、黄鹂+B | subject: 编译原理 | question_no: 6 | order: 15 | content: 请基于L翻译模式将语法单元E翻译为对应的TAC码。（15分） [NL] 1 / 1 ###END###

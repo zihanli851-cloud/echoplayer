@@ -1,3 +1,4 @@
+from datetime import datetime
 from pathlib import Path
 import json
 import os
@@ -18,6 +19,7 @@ from app.services.coze_service import CozeService
 from app.services.dual_run import DualRunReviewService, ReviewPipeline
 from app.services.history_bank import HistoryBankService
 from app.services.history_bank_jobs import HistoryBankRefreshJobStore
+from app.services.document_parser import DocumentParseError, RoutedDocumentParser
 from app.services.ocr import build_ocr_provider_from_env
 from app.services.pdf_parser import AgentPdfParser, PdfParseError, RoutedPdfParser
 from app.services.question_splitter import AgentQuestionSplitter, RuleQuestionSplitter
@@ -77,6 +79,20 @@ def is_pdf_file(upload: UploadFile | None) -> bool:
     return filename.endswith(".pdf") or content_type == "application/pdf"
 
 
+def is_review_document(upload: UploadFile | None) -> bool:
+    if upload is None:
+        return False
+
+    filename = (upload.filename or "").lower()
+    content_type = (upload.content_type or "").lower()
+    return (
+        filename.endswith(".pdf")
+        or filename.endswith(".docx")
+        or content_type == "application/pdf"
+        or content_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    )
+
+
 def render_index(
     request: Request,
     *,
@@ -88,7 +104,7 @@ def render_index(
 ) -> HTMLResponse:
     """Render the upload page with a unified context."""
 
-    return templates.TemplateResponse(
+    return _render_template(
         request,
         "index.html",
         {
@@ -98,6 +114,28 @@ def render_index(
             "message_type": message_type,
             "result": result,
         },
+        status_code=status_code,
+    )
+
+
+def _render_template(
+    request: Request,
+    template_name: str,
+    context: dict | None = None,
+    *,
+    status_code: int = 200,
+) -> HTMLResponse:
+    payload = {
+        "app_name": "EchoPaper",
+        "page_type": template_name.replace(".html", ""),
+        "current_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+    }
+    if context:
+        payload.update(context)
+    return templates.TemplateResponse(
+        request,
+        template_name,
+        payload,
         status_code=status_code,
     )
 
@@ -155,7 +193,7 @@ async def history_bank(
     review_store = _get_review_store(request)
     history_bank_jobs = review_store.list_history_bank_jobs(limit=5)
 
-    return templates.TemplateResponse(
+    return _render_template(
         request,
         "history_bank.html",
         {
@@ -282,20 +320,20 @@ async def review(
             status_code=400,
         )
 
-    if not is_pdf_file(paper_a):
+    if not is_review_document(paper_a):
         return render_index(
             request,
             form_data=form_data,
-            message="A 卷必须为 PDF 文件。",
+            message="A 卷必须为 PDF 或 DOCX 文件。",
             message_type="error",
             status_code=400,
         )
 
-    if paper_b and not is_pdf_file(paper_b):
+    if paper_b and not is_review_document(paper_b):
         return render_index(
             request,
             form_data=form_data,
-            message="B 卷必须为 PDF 文件。",
+            message="B 卷必须为 PDF 或 DOCX 文件。",
             message_type="error",
             status_code=400,
         )
@@ -355,7 +393,9 @@ async def review(
         dual_run_service = DualRunReviewService(
             code_pipeline=ReviewPipeline(
                 pipeline_name="代码版",
-                extraction_provider=RoutedPdfParser(ocr_provider=ocr_provider),
+                extraction_provider=RoutedDocumentParser(
+                    pdf_parser=RoutedPdfParser(ocr_provider=ocr_provider),
+                ),
                 split_provider=RuleQuestionSplitter(),
                 compare_provider=CodeSimilarityComparator(),
                 spellcheck_provider=LocalSpellcheckProvider(),
@@ -363,7 +403,9 @@ async def review(
             agent_pipeline=ReviewPipeline(
                 pipeline_name="Coze 智能体版",
                 extraction_provider=AgentPdfParser(
-                    fallback_provider=RoutedPdfParser(ocr_provider=ocr_provider),
+                    fallback_provider=RoutedDocumentParser(
+                        pdf_parser=RoutedPdfParser(ocr_provider=ocr_provider),
+                    ),
                 ),
                 split_provider=AgentQuestionSplitter(coze_service=coze_service),
                 compare_provider=(
@@ -435,12 +477,12 @@ async def review(
             template_context.setdefault("export_payload", {})["agent_job"] = agent_job.to_summary()
         _persist_report_snapshot(request, template_context)
 
-        return templates.TemplateResponse(
+        return _render_template(
             request,
             "report.html",
             template_context,
         )
-    except PdfParseError as exc:
+    except (PdfParseError, DocumentParseError) as exc:
         return render_index(
             request,
             form_data=form_data,
@@ -529,7 +571,7 @@ async def report_snapshots(
 ) -> HTMLResponse:
     review_store = _get_review_store(request)
     snapshots = review_store.list_report_snapshots(limit=limit, subject=subject, keyword=q)
-    return templates.TemplateResponse(
+    return _render_template(
         request,
         "reports.html",
         {
@@ -560,7 +602,7 @@ async def report_snapshot(request: Request, session_id: str) -> HTMLResponse:
         raise HTTPException(status_code=404, detail="报告快照不存在。")
 
     snapshot = _backfill_snapshot_agent_payload(review_store, snapshot)
-    return templates.TemplateResponse(
+    return _render_template(
         request,
         "report_snapshot.html",
         _build_report_snapshot_context(
@@ -594,7 +636,7 @@ async def get_agent_job(request: Request, job_id: str) -> JSONResponse:
 async def agent_jobs(request: Request, limit: int = Query(50, ge=1, le=200)) -> HTMLResponse:
     review_store = _get_review_store(request)
     jobs = review_store.list_agent_jobs(limit=limit)
-    return templates.TemplateResponse(
+    return _render_template(
         request,
         "agent_jobs.html",
         {
@@ -739,6 +781,15 @@ def _build_report_snapshot_context(snapshot: dict, *, export_history: list[dict]
     spellcheck = payload.get("spellcheck_comparison", {}) if isinstance(payload, dict) else {}
     agent_job = payload.get("agent_job", {}) if isinstance(payload, dict) else {}
     agent_payload = payload.get("agent_result_payload", {}) if isinstance(payload, dict) else {}
+    duplicate_rows = duplicate.get("code_rows", []) if isinstance(duplicate, dict) else []
+    spellcheck_rows = spellcheck.get("code_rows", []) if isinstance(spellcheck, dict) else []
+    snapshot_navigation = [
+        {"id": "snapshot-overview", "label": "总览", "count": len(uploaded := report.get("uploaded_papers", []) if isinstance(report, dict) else [])},
+        {"id": "snapshot-risks", "label": "风险提示", "count": len(payload.get("parse_quality", []) if isinstance(payload, dict) else [])},
+        {"id": "snapshot-duplicates", "label": "重复题", "count": len(duplicate_rows)},
+        {"id": "snapshot-spellcheck", "label": "错字问题", "count": len(spellcheck_rows)},
+        {"id": "snapshot-exports", "label": "导出记录", "count": len(export_history or [])},
+    ]
 
     return {
         "session_id": snapshot.get("session_id", ""),
@@ -753,14 +804,15 @@ def _build_report_snapshot_context(snapshot: dict, *, export_history: list[dict]
         "dual_run_sections": payload.get("dual_run_sections", []) if isinstance(payload, dict) else [],
         "question_quality": payload.get("question_quality", []) if isinstance(payload, dict) else [],
         "duplicate_summary": duplicate.get("summary", {}) if isinstance(duplicate, dict) else {},
-        "duplicate_rows": duplicate.get("code_rows", []) if isinstance(duplicate, dict) else [],
+        "duplicate_rows": duplicate_rows,
         "spellcheck_summary": spellcheck.get("summary", {}) if isinstance(spellcheck, dict) else {},
-        "spellcheck_rows": spellcheck.get("code_rows", []) if isinstance(spellcheck, dict) else [],
+        "spellcheck_rows": spellcheck_rows,
         "agent_job": agent_job,
         "agent_payload": agent_payload,
         "agent_questions": agent_payload.get("questions", []) if isinstance(agent_payload, dict) else [],
         "agent_matches": agent_payload.get("similarity_matches", []) if isinstance(agent_payload, dict) else [],
         "agent_issues": agent_payload.get("spellcheck_issues", []) if isinstance(agent_payload, dict) else [],
+        "snapshot_navigation": snapshot_navigation,
     }
 
 

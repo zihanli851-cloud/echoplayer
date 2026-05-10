@@ -1,0 +1,47 @@
+###QUESTION### paper_id: H21 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+A | subject: 操作系统 | question_no: 1 | order: 1 | content: 既考虑作业等待时间，又考虑作业执行时间的的调度算法是： [NL] A. 高相应比优先 [NL] B. 短作业优先 [NL] C. 优先级调度 [NL] D. 先来先服务 ###END###
+###QUESTION### paper_id: H21 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+A | subject: 操作系统 | question_no: 2 | order: 2 | content: 在分时操作系统中，进程调度经常采用 算法。 [NL] A. 先来先服务 [NL] B. 最高优先权 [NL] C. 时间片轮转 [NL] D. 随机 ###END###
+###QUESTION### paper_id: H21 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+A | subject: 操作系统 | question_no: 3 | order: 3 | content: 下列作业调度算法中， 调度算法于作业的估计运行时间有关。 [NL] A. 先来先服务 [NL] B. 短作业优先 [NL] C. 优先级 [NL] D. 时间片轮转 ###END###
+###QUESTION### paper_id: H21 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+A | subject: 操作系统 | question_no: 4 | order: 4 | content: 进程间的基本关系为： [NL] A. 相互独立 [NL] B. 同步与互斥 [NL] C. 信息传递与信息缓冲 [NL] D. 并行执行与资源共享 ###END###
+###QUESTION### paper_id: H21 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+A | subject: 操作系统 | question_no: 5 | order: 5 | content: 任何进程使用管程所管理的临界资源时，需要调用特定的 才能户次地进入管程 [NL] 并使用资源。 [NL] A. 系统调用 [NL] B. 同步操作 [NL] C. 互斥操作 [NL] D. 管程中的相关入口 ###END###
+###QUESTION### paper_id: H21 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+A | subject: 操作系统 | question_no: 6 | order: 6 | content: 根据作业在本次分配到的内存起始地址将目标代码装到指定内存地址中，并修改所 [NL] 有有关地址部分的值的方法称为 方式。 [NL] A. 固定定位 [NL] B. 静态重定位 [NL] C. 动态重定位 [NL] D. 单一连续重定位 ###END###
+###QUESTION### paper_id: H21 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+A | subject: 操作系统 | question_no: 7 | order: 7 | content: 在固定分区分配中，每个分区的大小是 。 [NL] A. 相同 [NL] B. 随作业长度而变 [NL] C. 可以不同但预先固定 [NL] D. 可以不同但根据作业长度固定 ###END###
+###QUESTION### paper_id: H21 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+A | subject: 操作系统 | question_no: 8 | order: 8 | content: 采用动态重定位的优点是： [NL] A. 程序执行时，其映像在内存中的地址空间可变 [NL] B. 程序在执行前就可决定装入内存的地址 [NL] C. 能用软件实施地址变换 [NL] D. 动态重定位的程序占用的内存资源较少 ###END###
+###QUESTION### paper_id: H21 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+A | subject: 操作系统 | question_no: 9 | order: 9 | content: 内存抖动现象的发生是由 引起的。 [NL] A. 置换算法选择不当 [NL] B. 交换的信息量过大 [NL] C. 内存容量不足 [NL] D. 请求页式管理方案 ###END###
+###QUESTION### paper_id: H21 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+A | subject: 操作系统 | question_no: 10 | order: 10 | content: 关于分页管理系统的页面调度算法说法错误的是 。 [NL] A. 一个好的页面置换算法应减少和避免抖动现象 [NL] B. FIFO 置换算法实现简单，选择最先进入内存的页面调出 [NL] C. LRU 置换算法是基于局部性原理的算法，调出最近一段时间被访问次数最少的 [NL] 页面 [NL] D. 最优更新算法选择未来最长时间内不再被访问的页面 ###END###
+###QUESTION### paper_id: H21 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+A | subject: 操作系统 | question_no: 11 | order: 11 | content: 下列设备中，不属于独占设备的是： [NL] A. 打印机 [NL] B. 磁盘 [NL] C. 扫描仪 [NL] D. 磁带 ###END###
+###QUESTION### paper_id: H21 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+A | subject: 操作系统 | question_no: 12 | order: 12 | content: 在操作系统中，用户使用 I/O设备时，通常采用 。 [NL] A. 逻辑设备号 [NL] B. 物理设备号 [NL] C. 通道号 [NL] D. 设备控制器号 ###END###
+###QUESTION### paper_id: H21 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+A | subject: 操作系统 | question_no: 13 | order: 13 | content: 设备管理缓冲技术中的缓冲池在 中。 [NL] A. 内存 [NL] B. 外存 [NL] C. ROM [NL] D. 寄存器 ###END###
+###QUESTION### paper_id: H21 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+A | subject: 操作系统 | question_no: 14 | order: 14 | content: 文件的存储方法依赖于 。 [NL] A. 文件的物理结构 [NL] B. 存放文件的存储设备的特性 [NL] C. A和 B [NL] D. 文件的逻辑结构 ###END###
+###QUESTION### paper_id: H21 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+A | subject: 操作系统 | question_no: 15 | order: 15 | content: 按文件用途来分，编译程序是 。 [NL] A. 用户文件 [NL] B. 档案文件 [NL] C. 系统文件 [NL] D. 库文件 ###END###
+###QUESTION### paper_id: H21 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+A | subject: 操作系统 | question_no: 16 | order: 16 | content: 目录文件存放的信息是： [NL] A. 文件的数据信息 [NL] B. 文件的文件目录 [NL] C. 该目录中所有数据文件目录 [NL] D. 该目录中所有子目录文件和数据文件的目录 ###END###
+###QUESTION### paper_id: H21 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+A | subject: 操作系统 | question_no: 17 | order: 17 | content: 按 分类可以将设备分为块设备和字符设备。 [NL] A. 从属关系 [NL] B. 操作特性 [NL] C. 共享属性 [NL] D. 信息交换单位 ###END###
+###QUESTION### paper_id: H21 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+A | subject: 操作系统 | question_no: 18 | order: 18 | content: 面向用户的文件组织结构属于 。 [NL] A. 虚拟结构 [NL] B. 实际结构 [NL] C. 逻辑结构 [NL] D. 物理结构 ###END###
+###QUESTION### paper_id: H21 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+A | subject: 操作系统 | question_no: 19 | order: 19 | content: N个进程访问一个临界资源，则设置的互斥信号量 s 的取值范围是： [NL] A. 0 ∽ (N-1) [NL] B. 1 ∽ -(N-1) [NL] C. 1 ∽ (N-1) [NL] D. 0 ∽ -1 ###END###
+###QUESTION### paper_id: H21 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+A | subject: 操作系统 | question_no: 20 | order: 20 | content: 在请求分页存储管理系统中，凡未装入过的页都应从 调入内存。 [NL] A. 系统区 [NL] B. 文件区 [NL] C. 交换区 [NL] D. 页面缓冲区 ###END###
+###QUESTION### paper_id: H21 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+A | subject: 操作系统 | question_no: 1 | order: 21 | content: 注意：以下所指的Linux 系统均指Ubuntu Linux 系统，默认的shell 程序为 bash，如果 [NL] 答案是不唯一的，给出其中一个答案即可； [NL] Linux 中设置主机名的文件是： ###END###
+###QUESTION### paper_id: H21 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+A | subject: 操作系统 | question_no: 2 | order: 22 | content: Linux 中设置开机自动挂载磁盘的文件是： ###END###
+###QUESTION### paper_id: H21 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+A | subject: 操作系统 | question_no: 3 | order: 23 | content: Linux 中为某个单独用户设置环境变量的文件是： ###END###
+###QUESTION### paper_id: H21 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+A | subject: 操作系统 | question_no: 4 | order: 24 | content: Linux 中配置固定 ip的文件是： ###END###
+###QUESTION### paper_id: H21 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+A | subject: 操作系统 | question_no: 5 | order: 25 | content: Linux 中查看当前使用的 shell 的名称的命令： ###END###
+###QUESTION### paper_id: H21 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+A | subject: 操作系统 | question_no: 6 | order: 26 | content: Linux 中执行最近一次以 gr开头的命令： ###END###
+###QUESTION### paper_id: H21 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+A | subject: 操作系统 | question_no: 7 | order: 27 | content: Linux 中查看当前文件夹中的 file文件，要求分屏显示，每次显示 10行： ###END###
+###QUESTION### paper_id: H21 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+A | subject: 操作系统 | question_no: 8 | order: 28 | content: Linux 中在当前目录中，创建一个 tmp.txt 的文件： ###END###
+###QUESTION### paper_id: H21 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+A | subject: 操作系统 | question_no: 9 | order: 29 | content: 将当前目录中的文件 file1.txt 重命名为file2.txt： ###END###
+###QUESTION### paper_id: H21 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+A | subject: 操作系统 | question_no: 10 | order: 30 | content: 打印系统内核版本： ###END###
+###QUESTION### paper_id: H21 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+A | subject: 操作系统 | question_no: 11 | order: 31 | content: 查看系统最近1、5、15分钟内的负载的命令： ###END###
+###QUESTION### paper_id: H21 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+A | subject: 操作系统 | question_no: 12 | order: 32 | content: 将当前文件夹中 panda 文件夹中的所有内容压缩打包成 panda.tar.gz： ###END###
+###QUESTION### paper_id: H21 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+A | subject: 操作系统 | question_no: 13 | order: 33 | content: 执行当前文件夹中的 xxx.sh 文件，要求在用户退出服务器后仍运行： ###END###
+###QUESTION### paper_id: H21 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+A | subject: 操作系统 | question_no: 14 | order: 34 | content: 查看当前系统中各个挂载磁盘的大小及空间利用率： ###END###
+###QUESTION### paper_id: H21 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+A | subject: 操作系统 | question_no: 15 | order: 35 | content: 查看进程号是12345 的进程的相关信息： ###END###
+###QUESTION### paper_id: H21 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+A | subject: 操作系统 | question_no: 16 | order: 36 | content: 显示当前登录的所有用户的信息： ###END###
+###QUESTION### paper_id: H21 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+A | subject: 操作系统 | question_no: 17 | order: 37 | content: 去除当前文件夹下文件 test.txt 中的重复的行： ###END###
+###QUESTION### paper_id: H21 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+A | subject: 操作系统 | question_no: 18 | order: 38 | content: 修改当前文件夹下文件 eg.sh 的权限，使得任意用户可以以所有者的权限对其进 [NL] 行执行： ###END###
+###QUESTION### paper_id: H21 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+A | subject: 操作系统 | question_no: 19 | order: 39 | content: 查看当前文件夹中文件 hello.txt 中最后 10行的内容： ###END###
+###QUESTION### paper_id: H21 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+A | subject: 操作系统 | question_no: 20 | order: 40 | content: 将命令python /etc/hello.py通过别名命名为 hpy，以简化执行操作： ###END###
+###QUESTION### paper_id: H21 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+A | subject: 操作系统 | question_no: 1 | order: 41 | content: 注意：请尽可能按照自己的理解以简洁的文字回答以下问题 [NL] 简述OpenMP 编程中伪共享的基本概念（6 分）。 ###END###
+###QUESTION### paper_id: H21 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+A | subject: 操作系统 | question_no: 2 | order: 42 | content: 依次回答以下问题：什么是进程？请画出进程的 5 状态转移图，并进行简要分析； [NL] 什么是线程？它和进程的主要区别是什么？（8分） ###END###
+###QUESTION### paper_id: H21 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+A | subject: 操作系统 | question_no: 3 | order: 43 | content: 在非固定的分区的内存管理中，请给出至少 4 种提高内存使用效率的策略（8 分）。 ###END###
+###QUESTION### paper_id: H21 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+A | subject: 操作系统 | question_no: 4 | order: 44 | content: 请分别简述页式和段式内存管理的基本思想，两者进行地址翻译的基本步骤，以及 [NL] 快表在其中扮演的角色（12分）。 ###END###
+###QUESTION### paper_id: H21 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+A | subject: 操作系统 | question_no: 5 | order: 45 | content: 在进行文件管理的过程中，请简述 3种对辅存空间进行分配的方法（6分）。 ###END###
+###QUESTION### paper_id: H21 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+A | subject: 操作系统 | question_no: 6 | order: 46 | content: 有一座只能容下单列汽车通过的长窄桥，桥两边的汽车在对面没有汽车上桥的情况 [NL] 下可以上桥并通过桥，且同一方向可以允许任意多的汽车通过。请用 PV 操作实现 [NL] 桥两边的汽车的安全通过，两边的汽车各作为一组进程，并说明各个信号量的意义 [NL] 和初始值。（12分） ###END###
+###QUESTION### paper_id: H21 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+A | subject: 操作系统 | question_no: 7 | order: 47 | content: 对于如下图的交通死锁现象，回答如下的问题：（8分） [NL] a) 具体说明在此种情况下，发生死锁的所有条件都是满足的； [NL] b) 试增加一个简单的约束，以避免死锁的发生。 ###END###

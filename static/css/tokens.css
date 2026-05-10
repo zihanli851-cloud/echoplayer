@@ -1,0 +1,33 @@
+:root {
+  --font-sans: "Microsoft YaHei", "PingFang SC", "Noto Sans SC", sans-serif;
+  --bg-main: linear-gradient(135deg, #f7f0e7 0%, #efe4d4 100%);
+  --bg-admin: linear-gradient(180deg, #f6f7fb 0%, #eef2f7 100%);
+  --surface: rgba(255, 250, 244, 0.96);
+  --surface-strong: #ffffff;
+  --surface-muted: rgba(255, 255, 255, 0.76);
+  --surface-admin: #ffffff;
+  --line: rgba(28, 49, 44, 0.12);
+  --line-strong: #d8dee9;
+  --text: #18312d;
+  --text-strong: #202734;
+  --muted: #5f6f6b;
+  --muted-strong: #667085;
+  --accent: #d4683c;
+  --accent-dark: #b7562d;
+  --teal: #1f6e63;
+  --info: #3d6fb7;
+  --warn: #b54708;
+  --danger: #b42318;
+  --danger-soft: #fff0ee;
+  --success: #1f6b45;
+  --success-soft: #e8f6ee;
+  --shadow-card: 0 18px 40px rgba(32, 41, 37, 0.08);
+  --radius-page: 28px;
+  --radius-card: 22px;
+  --radius-control: 14px;
+  --radius-pill: 999px;
+  --page-width: min(1320px, calc(100vw - 32px));
+  --page-width-home: min(1240px, calc(100vw - 32px));
+  --page-width-narrow: min(960px, calc(100vw - 32px));
+  --page-width-admin: min(1180px, calc(100vw - 32px));
+}

@@ -1,0 +1,43 @@
+<section class="section section-anchor" id="section-complex-questions" data-risk-level="suspect" data-paper-scope="all">
+  <div class="section-head">
+    <div>
+      <h2>复杂题复核提示</h2>
+      <p>定位包含图片、图表、OCR 回填或复杂公式表达的题目，方便直接回看原卷 PDF。</p>
+    </div>
+  </div>
+
+  {% if complex_question_rows %}
+  <div class="table-shell">
+    <table>
+      <thead>
+        <tr>
+          <th>来源</th>
+          <th>题号</th>
+          <th>类型</th>
+          <th>风险等级</th>
+          <th>识别依据</th>
+          <th>复核建议</th>
+          <th>内容预览</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in complex_question_rows %}
+        <tr>
+          <td>{{ row.paper_label }}</td>
+          <td>{{ row.question_no }}</td>
+          <td>{{ row.flag_summary }}</td>
+          <td><span class="badge {% if row.review_level == '高风险' %}high{% elif row.review_level == '需复核' %}suspect{% else %}info{% endif %}">{{ row.review_level }}</span></td>
+          <td>{{ row.detail }} {{ row.reason }}</td>
+          <td>{{ row.recommendation }}</td>
+          <td>{{ row.content_preview }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  {% with message="当前代码版未额外识别到需要单独提示的图片题、图表题或复杂公式题。" %}
+  {% include 'partials/shared/empty_state.html' %}
+  {% endwith %}
+  {% endif %}
+</section>

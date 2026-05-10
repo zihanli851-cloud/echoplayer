@@ -58,6 +58,23 @@ class ReviewPipeline:
             text_content, page_count = self.extraction_provider.extract(Path(paper.temp_path))
             paper.text_content = text_content
             paper.page_count = page_count
+            snapshot = getattr(self.extraction_provider, "last_snapshot", None)
+            paper.parse_note = str(
+                getattr(
+                    self.extraction_provider,
+                    "last_note",
+                    getattr(self.extraction_provider, "provider_note", ""),
+                )
+                or ""
+            ).strip()
+            if snapshot is not None:
+                paper.image_count = int(getattr(snapshot, "image_count", 0) or 0)
+                paper.ocr_attempted = bool(getattr(snapshot, "ocr_attempted", False))
+                paper.ocr_succeeded = bool(getattr(snapshot, "ocr_succeeded", False))
+            paper.requires_manual_review = bool(
+                paper.image_count > 0
+                or (paper.ocr_attempted and not paper.ocr_succeeded)
+            )
             questions_by_paper[paper.paper_id] = self.split_provider.split(
                 paper.text_content,
                 paper.paper_id,

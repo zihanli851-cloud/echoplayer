@@ -1,0 +1,12 @@
+<nav class="top-nav" aria-label="主导航">
+  <div class="top-nav__brand">
+    <strong>{{ app_name }}</strong>
+    <span>试卷智能审查工作台</span>
+  </div>
+  <div class="top-nav__links">
+    <a href="/" class="{% if page_type == 'index' %}is-active{% endif %}">上传工作台</a>
+    <a href="/reports" class="{% if page_type in ['reports', 'report_snapshot'] %}is-active{% endif %}">历史报告</a>
+    <a href="/history-bank" class="{% if page_type == 'history_bank' %}is-active{% endif %}">历史题库</a>
+    <a href="/agent-jobs" class="{% if page_type == 'agent_jobs' %}is-active{% endif %}">Agent 任务</a>
+  </div>
+</nav>

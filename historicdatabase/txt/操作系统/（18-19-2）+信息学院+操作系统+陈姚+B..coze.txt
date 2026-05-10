@@ -1,0 +1,46 @@
+###QUESTION### paper_id: H22 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+B. | subject: 操作系统 | question_no: 1 | order: 1 | content: 一个程序与和它有关的进程的对应关系是： [NL] A. 一对一 [NL] B. 多对一 [NL] C. 一对多 [NL] D. 多对多 ###END###
+###QUESTION### paper_id: H22 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+B. | subject: 操作系统 | question_no: 2 | order: 2 | content: 当某一进程被创建后， [NL] A. 一直存在于系统中，直到系统关闭时撤销 [NL] B. 随着作业的运行结束或不正常结束而撤销 [NL] C. 随着时间片轮转而撤销或建立 [NL] D. 随着进程的阻塞或者唤醒而撤销或建立 ###END###
+###QUESTION### paper_id: H22 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+B. | subject: 操作系统 | question_no: 3 | order: 3 | content: N个进程访问一个临界资源，则设置的互斥信号量 s 的取值范围是： [NL] A. 0 ∽ (N-1) [NL] B. 1 ∽ -(N-1) [NL] C. 1 ∽ (N-1) [NL] D. 0 ∽ -1 ###END###
+###QUESTION### paper_id: H22 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+B. | subject: 操作系统 | question_no: 4 | order: 4 | content: 下列 不属于管程的组成部分： [NL] A. 对管程内数据结构进行操作的一组过程 [NL] B. 管程外过程调用管程内数据结构的说明 [NL] C. 管程内共享变量的说明 [NL] D. 共享变量初始化语句序列 ###END###
+###QUESTION### paper_id: H22 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+B. | subject: 操作系统 | question_no: 5 | order: 5 | content: M 个生产者，N个消费者共享长度为 L的有界缓冲区，对缓冲区进行互斥操作而设置的信 [NL] 号量的初始值为： [NL] A. L [NL] B. M [NL] C. N [NL] D. 1 ###END###
+###QUESTION### paper_id: H22 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+B. | subject: 操作系统 | question_no: 6 | order: 6 | content: 以下分配方案中， 不适于多道程序系统。 [NL] A. 单一连续区管理 [NL] B. 固定分区管理 [NL] C. 可变分区管理 [NL] D. 页式存储管理 ###END###
+###QUESTION### paper_id: H22 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+B. | subject: 操作系统 | question_no: 7 | order: 7 | content: 静态地址重定位的结果是： [NL] A. 源程序 [NL] B. 编译程序 [NL] C. 目标程序 [NL] D. 执行程序 ###END###
+###QUESTION### paper_id: H22 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+B. | subject: 操作系统 | question_no: 8 | order: 8 | content: 在段页式内存管理系统中，内存等分成 ，程序按逻辑模块划分成若干 。 [NL] A. 块，页 [NL] B. 块，段 [NL] C. 分区，段 [NL] D. 段，页 ###END###
+###QUESTION### paper_id: H22 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+B. | subject: 操作系统 | question_no: 9 | order: 9 | content: 与虚拟存储技术不能结合使用的是 。 [NL] A. 分区存储管理 [NL] B. 页式存储管理 [NL] C. 段式存储管理 [NL] D. 段页式存储管理 ###END###
+###QUESTION### paper_id: H22 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+B. | subject: 操作系统 | question_no: 10 | order: 10 | content: 不可能产生内存抖动现象的存储管理是： [NL] A. 固定分区管理 [NL] B. 分页式虚拟内存管理 [NL] C. 段式虚拟内存管理 [NL] D. 以上均不对 ###END###
+###QUESTION### paper_id: H22 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+B. | subject: 操作系统 | question_no: 11 | order: 11 | content: CPU对通道的请求形式是 。 [NL] A. 自陷 [NL] B. 中断 [NL] C. 通道命令 [NL] D. 转移指令 [NL] 通道是一种 。 [NL] A. I/O端口 [NL] B. 数据通道 [NL] C. I/O专用处理机 [NL] D. 软件工具 ###END###
+###QUESTION### paper_id: H22 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+B. | subject: 操作系统 | question_no: 13 | order: 12 | content: 下列描述中，不属于设备管理功能的是： [NL] A. 缓冲区管理 [NL] B. 设备分配 [NL] C. 中断处理 [NL] D. I/O操作 ###END###
+###QUESTION### paper_id: H22 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+B. | subject: 操作系统 | question_no: 14 | order: 13 | content: 在文件系统中，计算机用户以 方式直接使用外存。 [NL] A. 逻辑地址 [NL] B. 物理结构 [NL] C. 名字空间 [NL] D. 虚拟地址 ###END###
+###QUESTION### paper_id: H22 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+B. | subject: 操作系统 | question_no: 15 | order: 14 | content: 文件管理实际上是管理 。 [NL] A. 主存空间 [NL] B. 辅助存储空间 [NL] C. 逻辑地址空间 [NL] D. 物理地址空间 ###END###
+###QUESTION### paper_id: H22 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+B. | subject: 操作系统 | question_no: 16 | order: 15 | content: 在文件管理中，位示图主要用于： [NL] A. 磁盘的驱动调动 [NL] B. 磁盘空间的分配和回收 [NL] C. 文件目录的查找 [NL] D. 页面置换 ###END###
+###QUESTION### paper_id: H22 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+B. | subject: 操作系统 | question_no: 17 | order: 16 | content: 关于分页管理系统的页面调度算法说法错误的是 。 [NL] A. 一个好的页面置换算法应减少和避免抖动现象 [NL] B. FIFO置换算法实现简单，选择最先进入内存的页面调出 [NL] C. LRU置换算法是基于局部性原理的算法，调出最近一段时间被访问次数最少的页面 [NL] D. 最优更新算法选择未来最长时间内不再被访问的页面 ###END###
+###QUESTION### paper_id: H22 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+B. | subject: 操作系统 | question_no: 18 | order: 17 | content: 环状缓冲区是一种 。 [NL] A. 单缓冲区 [NL] B. 双缓冲区 [NL] C. 多缓冲区 [NL] D. 缓冲池 ###END###
+###QUESTION### paper_id: H22 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+B. | subject: 操作系统 | question_no: 19 | order: 18 | content: SPOOLing技术可以实现设备的 分配。 [NL] A. 独占 [NL] B. 共享 [NL] C. 虚拟 [NL] D. 物理 ###END###
+###QUESTION### paper_id: H22 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+B. | subject: 操作系统 | question_no: 20 | order: 19 | content: 如果信号量S 的初值为 [NL] 当前值为-1，则表示有 个等待进程。： [NL] A. 0 [NL] B. 1 [NL] C. 2 [NL] D. 3 ###END###
+###QUESTION### paper_id: H22 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+B. | subject: 操作系统 | question_no: 1 | order: 20 | content: 注意：以下所指的Linux 系统均指Ubuntu Linux 系统，默认的 shell 程序为 bash，如果答案是 [NL] 不唯一的，给出其中一个答案即可； [NL] Linux 中设置主机映射的文件是： ###END###
+###QUESTION### paper_id: H22 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+B. | subject: 操作系统 | question_no: 2 | order: 21 | content: Linux 中设置全局的环境变量的文件是： ###END###
+###QUESTION### paper_id: H22 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+B. | subject: 操作系统 | question_no: 3 | order: 22 | content: Linux 中查看主机ip 的命令： ###END###
+###QUESTION### paper_id: H22 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+B. | subject: 操作系统 | question_no: 4 | order: 23 | content: Linux 中配置DNS 服务器的文件是： ###END###
+###QUESTION### paper_id: H22 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+B. | subject: 操作系统 | question_no: 5 | order: 24 | content: Linux 中环境变量的系统名是： ###END###
+###QUESTION### paper_id: H22 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+B. | subject: 操作系统 | question_no: 6 | order: 25 | content: Linux 中列出当前目录中的详细信息，以符合人类习惯的方式显示： ###END###
+###QUESTION### paper_id: H22 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+B. | subject: 操作系统 | question_no: 7 | order: 26 | content: Linux 中查找当前目录中名字为tmp的目录： ###END###
+###QUESTION### paper_id: H22 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+B. | subject: 操作系统 | question_no: 8 | order: 27 | content: 在当前目录中创建一个软链接 link，要求其指向/etc/profile： ###END###
+###QUESTION### paper_id: H22 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+B. | subject: 操作系统 | question_no: 9 | order: 28 | content: 修改当前文件夹中的 test.sh文件的权限，使得其对于其它用户可读、不可写、不可执行， [NL] 对于所有者可读、可写、可执行，对用户组成员可读、不可写、可执行： ###END###
+###QUESTION### paper_id: H22 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+B. | subject: 操作系统 | question_no: 10 | order: 29 | content: 常看文件/etc/passwd 中包含 hello关键字的行： ###END###
+###QUESTION### paper_id: H22 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+B. | subject: 操作系统 | question_no: 11 | order: 30 | content: 对当前文件夹中的 x.tar.gz 进行解压的命令： ###END###
+###QUESTION### paper_id: H22 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+B. | subject: 操作系统 | question_no: 12 | order: 31 | content: 执行当前文件夹中的 hello.py文件，并在后台运行： ###END###
+###QUESTION### paper_id: H22 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+B. | subject: 操作系统 | question_no: 13 | order: 32 | content: 取消挂载到文件夹/etc/share上的磁盘： ###END###
+###QUESTION### paper_id: H22 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+B. | subject: 操作系统 | question_no: 14 | order: 33 | content: 查看当前文件夹中的所有文件的总大小，以符合人类习惯的方式显示： ###END###
+###QUESTION### paper_id: H22 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+B. | subject: 操作系统 | question_no: 15 | order: 34 | content: 查看文件/etc/inittab 中的前5行： ###END###
+###QUESTION### paper_id: H22 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+B. | subject: 操作系统 | question_no: 16 | order: 35 | content: 将运行在后台的作业号为 5的进程移动到前台运行： ###END###
+###QUESTION### paper_id: H22 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+B. | subject: 操作系统 | question_no: 17 | order: 36 | content: 修改当前文件夹下文件 eg.sh 的所有者为 root： ###END###
+###QUESTION### paper_id: H22 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+B. | subject: 操作系统 | question_no: 18 | order: 37 | content: 统计当前文件夹中文件 hello.txt 的行数和单词数： ###END###
+###QUESTION### paper_id: H22 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+B. | subject: 操作系统 | question_no: 19 | order: 38 | content: 擦除硬盘/dev/sda中的所有数据： ###END###
+###QUESTION### paper_id: H22 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+B. | subject: 操作系统 | question_no: 20 | order: 39 | content: 如果你的jdk安装目录是/usr/local/jdk，那么你需要在配置环境变量的对应文件中添加的 [NL] 内容是： ###END###
+###QUESTION### paper_id: H22 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+B. | subject: 操作系统 | question_no: 1 | order: 40 | content: 注意：请尽可能按照自己的理解以简洁的文字回答以下问题 [NL] 简述OpenMP 编程中线程安全的基本概念（6 分）。 ###END###
+###QUESTION### paper_id: H22 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+B. | subject: 操作系统 | question_no: 2 | order: 41 | content: 什么是进程控制块，它包含哪些信息？进程的 3个主要状态及相互间的转换关系是什么？ [NL] （8分） ###END###
+###QUESTION### paper_id: H22 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+B. | subject: 操作系统 | question_no: 3 | order: 42 | content: 请简述内存管理中的交换、重叠、双基址的基本原理（8分）。 ###END###
+###QUESTION### paper_id: H22 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+B. | subject: 操作系统 | question_no: 4 | order: 43 | content: 什么是请求分页式内存管理？它的实施过程中为什么会带来内存抖动？简述2种减少内存 [NL] 抖动的方法（12分）。 ###END###
+###QUESTION### paper_id: H22 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+B. | subject: 操作系统 | question_no: 5 | order: 44 | content: 在进行文件管理的过程中，请例举3种进行空闲空间管理的方法（6分）。 ###END###
+###QUESTION### paper_id: H22 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+B. | subject: 操作系统 | question_no: 6 | order: 45 | content: 死锁发生的条件是什么？如何避免？（8分）。 ###END###
+###QUESTION### paper_id: H22 | paper_label: （18-19-2）+信息学院+操作系统+陈姚+B. | subject: 操作系统 | question_no: 7 | order: 46 | content: 有两个生产者a和b不断向仓库存放产品，由销售者 c取走仓库中的产品（仓库初始的产 [NL] 品数为0，容量为无限大），请通过 PV操作写出这 3个进程同步和互斥的伪程序，并指明 [NL] 信号量的初值和意义（12分）。 ###END###

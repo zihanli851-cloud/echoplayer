@@ -81,6 +81,7 @@ def test_history_bank_page_renders_summary(tmp_path) -> None:
     assert "历史题库管理" in response.text
     assert str(tmp_path) in response.text
     assert "history.pdf" in response.text
+    assert "当前工作重点" in response.text
     assert fake_service.refresh_flags == [True]
 
 

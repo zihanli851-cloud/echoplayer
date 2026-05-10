@@ -1,297 +1,115 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>EchoPaper 历史报告列表</title>
-    <style>
-      :root {
-        --bg: #f5f7fb;
-        --panel: #ffffff;
-        --text: #202734;
-        --muted: #667085;
-        --line: #d8dee9;
-        --accent: #0f766e;
-        --warn: #b54708;
-      }
+{% extends "base.html" %}
 
-      * {
-        box-sizing: border-box;
-      }
+{% block title %}EchoPaper 历史报告列表{% endblock %}
+{% block body_class %}page-admin{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="/static/css/admin.css" />{% endblock %}
 
-      body {
-        margin: 0;
-        background: var(--bg);
-        color: var(--text);
-        font-family: "Microsoft YaHei", "PingFang SC", Arial, sans-serif;
-      }
+{% block body %}
+<main class="page-shell">
+  {% include "partials/layout/top_nav.html" %}
 
-      .page {
-        width: min(1180px, calc(100% - 32px));
-        margin: 0 auto;
-        padding: 28px 0 48px;
-      }
+  <section class="panel">
+    {% set eyebrow = "EchoPaper / 历史报告" %}
+    {% set title = "历史报告列表" %}
+    {% set description = "展示最近 " ~ limit ~ " 条已保存的报告快照，可继续打开摘要页、导出 JSON 或导出 PDF。" %}
+    {% include "partials/layout/page_header.html" %}
 
-      .panel {
-        background: var(--panel);
-        border: 1px solid var(--line);
-        border-radius: 8px;
-        padding: 22px;
-        margin-bottom: 18px;
-      }
+    {% set stats = namespace(pending=0, exported=0, agent=0) %}
+    {% for item in snapshots %}
+      {% if item.pending_review_count %}{% set stats.pending = stats.pending + 1 %}{% endif %}
+      {% if item.export_count %}{% set stats.exported = stats.exported + 1 %}{% endif %}
+      {% if item.agent_job_id %}{% set stats.agent = stats.agent + 1 %}{% endif %}
+    {% endfor %}
+    <div class="admin-summary-grid section">
+      <article class="admin-soft-card"><strong>当前结果数</strong><span class="metric-value">{{ snapshots | length }}</span><p>本次筛选后返回的历史报告数量。</p></article>
+      <article class="admin-soft-card"><strong>待复核报告</strong><span class="metric-value">{{ stats.pending }}</span><p>仍存在待确认项的历史报告数。</p></article>
+      <article class="admin-soft-card"><strong>已导出报告</strong><span class="metric-value">{{ stats.exported }}</span><p>已有导出记录的历史报告数。</p></article>
+      <article class="admin-soft-card"><strong>Agent 已关联</strong><span class="metric-value">{{ stats.agent }}</span><p>已写入 Agent job 的历史报告数。</p></article>
+    </div>
+  </section>
 
-      .topbar {
-        display: flex;
-        justify-content: space-between;
-        gap: 18px;
-        align-items: flex-start;
-      }
+  <section class="panel section">
+    <form class="filter-form" action="/reports" method="get">
+      <label>
+        科目
+        <select name="subject">
+          <option value="">全部科目</option>
+          {% for value, label in subject_options %}
+          <option value="{{ label }}" {% if active_subject == label %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>
+        关键词
+        <input type="search" name="q" value="{{ active_keyword }}" placeholder="教师、工号、session、Agent job" />
+      </label>
+      <label>
+        最近记录数
+        <input type="number" name="limit" value="{{ limit }}" min="1" max="200" />
+      </label>
+      <div class="actions">
+        <button type="submit">筛选</button>
+        <a class="open-link" href="/reports">清空</a>
+      </div>
+    </form>
+  </section>
 
-      h1 {
-        margin: 0;
-        line-height: 1.2;
-      }
+  <section class="panel section">
+    <div class="table-toolbar">
+      <p>优先打开“待复核”较多、近期导出频繁或存在 Agent 记录的报告。</p>
+    </div>
+    {% if snapshots %}
+    <div class="table-shell">
+      <table>
+        <thead>
+          <tr>
+            <th>更新时间</th>
+            <th>教师</th>
+            <th>科目</th>
+            <th>试卷/题目</th>
+            <th>问题摘要</th>
+            <th>导出</th>
+            <th>Agent</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in snapshots %}
+          <tr class="{% if item.pending_review_count %}table-row-warn{% endif %}">
+            <td data-label="更新时间">{{ item.snapshot_updated_at }}</td>
+            <td data-label="教师">{{ item.teacher_name or "未记录" }}<br /><small>{{ item.teacher_id or "" }}</small></td>
+            <td data-label="科目">{{ item.subject or "未记录" }}</td>
+            <td data-label="试卷/题目">{{ item.paper_count }} 份 / {{ item.question_count }} 题</td>
+            <td data-label="问题摘要">
+              重复 {{ item.duplicate_count }} 条，错字 {{ item.spellcheck_count }} 条
+              {% if item.pending_review_count %}
+              <br /><span class="badge warn">待复核 {{ item.pending_review_count }}</span>
+              {% else %}
+              <br /><span class="badge type">复核已处理</span>
+              {% endif %}
+            </td>
+            <td data-label="导出">
+              {% if item.export_count %}
+              {{ item.export_count }} 次<br />
+              <small>最近 {{ item.last_export_format | upper }}：{{ item.last_exported_at }}</small>
+              {% else %}
+              尚未导出
+              {% endif %}
+            </td>
+            <td data-label="Agent">{{ item.agent_job_id or "未提交" }}</td>
+            <td data-label="操作"><a class="open-link" href="/reports/{{ item.session_id }}">打开报告</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    {% with message="还没有保存的报告快照。生成一次审查报告后，这里会出现历史记录。" %}
+    {% include "partials/shared/empty_state.html" %}
+    {% endwith %}
+    {% endif %}
+  </section>
 
-      p {
-        margin: 8px 0 0;
-        color: var(--muted);
-        line-height: 1.7;
-      }
-
-      .eyebrow {
-        color: var(--accent);
-        font-size: 0.84rem;
-        font-weight: 700;
-        margin: 0 0 8px;
-      }
-
-      .actions {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 10px;
-        justify-content: flex-end;
-      }
-
-      .actions a,
-      .open-link,
-      .filter-form button {
-        min-height: 40px;
-        padding: 0 14px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        border: 1px solid var(--line);
-        border-radius: 6px;
-        background: #fff;
-        color: var(--text);
-        font-weight: 700;
-        text-decoration: none;
-      }
-
-      .filter-form {
-        display: grid;
-        grid-template-columns: 1fr 1fr auto auto;
-        gap: 12px;
-        align-items: end;
-      }
-
-      .filter-form label {
-        display: grid;
-        gap: 6px;
-        color: var(--muted);
-        font-size: 0.9rem;
-        font-weight: 700;
-      }
-
-      .filter-form input,
-      .filter-form select {
-        min-height: 40px;
-        border: 1px solid var(--line);
-        border-radius: 6px;
-        padding: 0 10px;
-        background: #fff;
-        color: var(--text);
-        font: inherit;
-      }
-
-      .filter-form button {
-        background: var(--accent);
-        color: #fff;
-        cursor: pointer;
-      }
-
-      table {
-        width: 100%;
-        border-collapse: collapse;
-      }
-
-      th,
-      td {
-        padding: 11px 12px;
-        border-bottom: 1px solid var(--line);
-        text-align: left;
-        vertical-align: top;
-      }
-
-      th {
-        color: var(--muted);
-        font-size: 0.9rem;
-      }
-
-      .badge {
-        display: inline-block;
-        padding: 3px 8px;
-        border-radius: 999px;
-        background: #e8f5f3;
-        color: var(--accent);
-        font-weight: 700;
-        font-size: 0.82rem;
-      }
-
-      .badge.warn {
-        background: #fff4e5;
-        color: var(--warn);
-      }
-
-      .empty {
-        padding: 18px;
-        border: 1px dashed var(--line);
-        border-radius: 8px;
-        color: var(--muted);
-      }
-
-      @media (max-width: 900px) {
-        .topbar {
-          display: grid;
-        }
-
-        .actions {
-          justify-content: flex-start;
-        }
-
-        .filter-form {
-          grid-template-columns: 1fr;
-        }
-
-        table,
-        thead,
-        tbody,
-        tr,
-        th,
-        td {
-          display: block;
-        }
-
-        thead {
-          display: none;
-        }
-
-        tr {
-          border-bottom: 1px solid var(--line);
-          padding: 10px 0;
-        }
-
-        td {
-          border-bottom: 0;
-          padding: 6px 0;
-        }
-
-        td::before {
-          content: attr(data-label);
-          display: block;
-          color: var(--muted);
-          font-size: 0.82rem;
-          font-weight: 700;
-        }
-      }
-    </style>
-  </head>
-  <body>
-    <main class="page">
-      <section class="panel topbar">
-        <div>
-          <p class="eyebrow">EchoPaper / 历史报告</p>
-          <h1>历史报告列表</h1>
-          <p>展示最近 {{ limit }} 条已保存的报告快照，可继续打开摘要页、导出 JSON 或导出 PDF。</p>
-        </div>
-        <div class="actions">
-          <a href="/">返回上传页</a>
-          <a href="/history-bank">管理历史题库</a>
-        </div>
-      </section>
-
-      <section class="panel">
-        <form class="filter-form" action="/reports" method="get">
-          <label>
-            科目
-            <select name="subject">
-              <option value="">全部科目</option>
-              {% for value, label in subject_options %}
-              <option value="{{ label }}" {% if active_subject == label %}selected{% endif %}>{{ label }}</option>
-              {% endfor %}
-            </select>
-          </label>
-          <label>
-            关键词
-            <input type="search" name="q" value="{{ active_keyword }}" placeholder="教师、工号、session、Agent job" />
-          </label>
-          <label>
-            最近记录数
-            <input type="number" name="limit" value="{{ limit }}" min="1" max="200" />
-          </label>
-          <button type="submit">筛选</button>
-          <a class="open-link" href="/reports">清空</a>
-        </form>
-      </section>
-
-      <section class="panel">
-        {% if snapshots %}
-        <table>
-          <thead>
-            <tr>
-              <th>更新时间</th>
-              <th>教师</th>
-              <th>科目</th>
-              <th>试卷/题目</th>
-              <th>问题摘要</th>
-              <th>导出</th>
-              <th>Agent</th>
-              <th>操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for item in snapshots %}
-            <tr>
-              <td data-label="更新时间">{{ item.snapshot_updated_at }}</td>
-              <td data-label="教师">{{ item.teacher_name or "未记录" }}<br /><small>{{ item.teacher_id or "" }}</small></td>
-              <td data-label="科目">{{ item.subject or "未记录" }}</td>
-              <td data-label="试卷/题目">{{ item.paper_count }} 份 / {{ item.question_count }} 题</td>
-              <td data-label="问题摘要">
-                重复 {{ item.duplicate_count }} 条，错字 {{ item.spellcheck_count }} 条
-                {% if item.pending_review_count %}
-                <br /><span class="badge warn">待复核 {{ item.pending_review_count }}</span>
-                {% else %}
-                <br /><span class="badge">复核已处理</span>
-                {% endif %}
-              </td>
-              <td data-label="导出">
-                {% if item.export_count %}
-                {{ item.export_count }} 次<br />
-                <small>最近 {{ item.last_export_format | upper }}：{{ item.last_exported_at }}</small>
-                {% else %}
-                尚未导出
-                {% endif %}
-              </td>
-              <td data-label="Agent">{{ item.agent_job_id or "未提交" }}</td>
-              <td data-label="操作"><a class="open-link" href="/reports/{{ item.session_id }}">打开报告</a></td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-        {% else %}
-        <div class="empty">还没有保存的报告快照。生成一次审查报告后，这里会出现历史记录。</div>
-        {% endif %}
-      </section>
-    </main>
-  </body>
-</html>
+  {% include "partials/layout/footer.html" %}
+</main>
+{% endblock %}

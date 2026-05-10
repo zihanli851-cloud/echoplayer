@@ -1,0 +1,43 @@
+<section class="section section-anchor" id="section-parse-quality" data-risk-level="high" data-paper-scope="all">
+  <div class="section-head">
+    <div>
+      <h2>解析风险提示</h2>
+      <p>集中展示图片题、扫描页、OCR 触发情况，以及建议人工复核的试卷入口。</p>
+    </div>
+  </div>
+
+  {% if parse_quality_rows %}
+  <div class="table-shell">
+    <table>
+      <thead>
+        <tr>
+          <th>来源</th>
+          <th>文件名</th>
+          <th>页数</th>
+          <th>图片数</th>
+          <th>OCR 状态</th>
+          <th>风险等级</th>
+          <th>复核建议</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in parse_quality_rows %}
+        <tr>
+          <td>{{ row.paper_label }}</td>
+          <td>{{ row.filename }}</td>
+          <td>{{ row.page_count }}</td>
+          <td>{{ row.image_count }}</td>
+          <td>{{ row.ocr_status }}</td>
+          <td><span class="badge {% if row.risk_level == '高风险' %}high{% else %}suspect{% endif %}">{{ row.risk_level }}</span></td>
+          <td>{{ row.risk_reason }} {{ row.parse_note }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  {% with message="当前上传试卷未发现明显图片题、扫描页或 OCR 风险提示。" %}
+  {% include 'partials/shared/empty_state.html' %}
+  {% endwith %}
+  {% endif %}
+</section>

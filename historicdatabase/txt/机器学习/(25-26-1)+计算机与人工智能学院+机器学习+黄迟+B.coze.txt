@@ -1,0 +1,34 @@
+###QUESTION### paper_id: H78 | paper_label: (25-26-1)+计算机与人工智能学院+机器学习+黄迟+B | subject: 机器学习 | question_no: 1 | order: 1 | content: 以下哪项属于监督学习任务？（ ） [NL] A. 对新闻文章自动分组 B. 根据用户行为预测是否会点击广告 [NL] C. 发现社交网络中的社区结构 D. 降低数据维度进行可视化 ###END###
+###QUESTION### paper_id: H78 | paper_label: (25-26-1)+计算机与人工智能学院+机器学习+黄迟+B | subject: 机器学习 | question_no: 2 | order: 2 | content: 使用ID3算法构建决策树时，若某个特征在所有样本中取值完全相同，则该特征的信 [NL] 息增益为：（ ） [NL] A. 1 B. 0 C. 最大值 D. 无法定义 ###END###
+###QUESTION### paper_id: H78 | paper_label: (25-26-1)+计算机与人工智能学院+机器学习+黄迟+B | subject: 机器学习 | question_no: 3 | order: 3 | content: 逻辑回归模型输出为0.8，表示：（ ） [NL] A. 属于正类的概率为80% B. 属于负类的概率为80% [NL] C. 预测值为0.8个单位 D. 模型置信度为0.8 ###END###
+###QUESTION### paper_id: H78 | paper_label: (25-26-1)+计算机与人工智能学院+机器学习+黄迟+B | subject: 机器学习 | question_no: 4 | order: 4 | content: KNN算法中，若k值过大，可能导致：（ ） [NL] A. 模型对噪声敏感 B. 决策边界过于复杂 [NL] C. 模型欠拟合 D. 训练时间显著增加 ###END###
+###QUESTION### paper_id: H78 | paper_label: (25-26-1)+计算机与人工智能学院+机器学习+黄迟+B | subject: 机器学习 | question_no: 5 | order: 5 | content: ID3决策树使用哪种指标选择划分属性？（ ） [NL] A. 基尼指数 B. 信息增益 C. 信息增益比 D. 方差减少量 ###END###
+###QUESTION### paper_id: H78 | paper_label: (25-26-1)+计算机与人工智能学院+机器学习+黄迟+B | subject: 机器学习 | question_no: 6 | order: 6 | content: 支持向量机中，若数据线性可分，则：（ ） [NL] A. 一定存在唯一最优解 B. 支持向量数量等于样本总数 [NL] C. 决策边界由所有样本决定 D. 无法处理高维数据 ###END###
+###QUESTION### paper_id: H78 | paper_label: (25-26-1)+计算机与人工智能学院+机器学习+黄迟+B | subject: 机器学习 | question_no: 7 | order: 7 | content: K-means算法迭代终止的常见条件是：（ ） [NL] A. 达到最大迭代次数或质心变化小于阈值 B. 所有样本类别不再变化 [NL] C. 算法运算时间达到最大 D. 簇内平方和为零 ###END###
+###QUESTION### paper_id: H78 | paper_label: (25-26-1)+计算机与人工智能学院+机器学习+黄迟+B | subject: 机器学习 | question_no: 8 | order: 8 | content: 以下哪种情况说明模型泛化能力差？（ ） [NL] A. 训练误差高，测试误差高 B. 训练误差低，测试误差高 [NL] C. 训练误差低，测试误差低 D. 训练误差高，测试误差低 ###END###
+###QUESTION### paper_id: H78 | paper_label: (25-26-1)+计算机与人工智能学院+机器学习+黄迟+B | subject: 机器学习 | question_no: 9 | order: 9 | content: 朴素贝叶斯分类器在处理连续特征时，常假设其服从：（ ） [NL] A. 均匀分布 B. 泊松分布 C. 高斯分布 D. 伯努利分布 ###END###
+###QUESTION### paper_id: H78 | paper_label: (25-26-1)+计算机与人工智能学院+机器学习+黄迟+B | subject: 机器学习 | question_no: 10 | order: 10 | content: 合页损失函数主要用于：（ ） [NL] A. 逻辑回归 B. 线性回归 C. 支持向量机 D. KNN [NL] 1 / 3 ###END###
+###QUESTION### paper_id: H78 | paper_label: (25-26-1)+计算机与人工智能学院+机器学习+黄迟+B | subject: 机器学习 | question_no: 11 | order: 11 | content: 在k折交叉验证中，若k=5，则每个样本被用于测试的次数是：（ ） [NL] A. 1次 B. 5次 C. 4次 D. 不确定 ###END###
+###QUESTION### paper_id: H78 | paper_label: (25-26-1)+计算机与人工智能学院+机器学习+黄迟+B | subject: 机器学习 | question_no: 12 | order: 12 | content: KD树主要用于加速哪种算法？（ ） [NL] A. 决策树 B. KNN C. K-means D. 朴素贝叶斯 ###END###
+###QUESTION### paper_id: H78 | paper_label: (25-26-1)+计算机与人工智能学院+机器学习+黄迟+B | subject: 机器学习 | question_no: 13 | order: 13 | content: 关于支持向量机的软间隔，以下说法正确的是：（ ） [NL] A. 允许部分样本位于间隔带内甚至被错误分类 [NL] B. 要求所有样本严格位于间隔带外 [NL] C. 仅适用于线性可分数据 D. 会降低模型的泛化能力 ###END###
+###QUESTION### paper_id: H78 | paper_label: (25-26-1)+计算机与人工智能学院+机器学习+黄迟+B | subject: 机器学习 | question_no: 14 | order: 14 | content: 在梯度下降中，若损失函数为凸函数，则：（ ） [NL] A. 一定收敛到全局最优 B. 可能陷入局部最优 [NL] C. 无法计算梯度 D. 必须使用随机梯度下降 ###END###
+###QUESTION### paper_id: H78 | paper_label: (25-26-1)+计算机与人工智能学院+机器学习+黄迟+B | subject: 机器学习 | question_no: 15 | order: 15 | content: 关于K-means聚类算法，以下说法正确的是：（ ） [NL] A. 能自动确定最优聚类数量k B. 对非凸形状的簇结构识别效果很好 [NL] C. 目标是最小化所有样本到其所属簇质心的距离平方和 [NL] D. 不受初始质心选择的影响 ###END###
+###QUESTION### paper_id: H78 | paper_label: (25-26-1)+计算机与人工智能学院+机器学习+黄迟+B | subject: 机器学习 | question_no: 1 | order: 16 | content: 线性回归可以用于分类任务。（ ） ###END###
+###QUESTION### paper_id: H78 | paper_label: (25-26-1)+计算机与人工智能学院+机器学习+黄迟+B | subject: 机器学习 | question_no: 2 | order: 17 | content: 逻辑回归本质上是一种分类算法。（ ） ###END###
+###QUESTION### paper_id: H78 | paper_label: (25-26-1)+计算机与人工智能学院+机器学习+黄迟+B | subject: 机器学习 | question_no: 3 | order: 18 | content: KNN算法在预测时需要计算测试样本与所有训练样本的距离。（ ） ###END###
+###QUESTION### paper_id: H78 | paper_label: (25-26-1)+计算机与人工智能学院+机器学习+黄迟+B | subject: 机器学习 | question_no: 4 | order: 19 | content: 决策树的剪枝一定能提升测试准确率。（ ） ###END###
+###QUESTION### paper_id: H78 | paper_label: (25-26-1)+计算机与人工智能学院+机器学习+黄迟+B | subject: 机器学习 | question_no: 5 | order: 20 | content: 支持向量机只能处理二分类问题。（ ） ###END###
+###QUESTION### paper_id: H78 | paper_label: (25-26-1)+计算机与人工智能学院+机器学习+黄迟+B | subject: 机器学习 | question_no: 6 | order: 21 | content: K-means要求每个簇的形状是球形的。（ ） ###END###
+###QUESTION### paper_id: H78 | paper_label: (25-26-1)+计算机与人工智能学院+机器学习+黄迟+B | subject: 机器学习 | question_no: 7 | order: 22 | content: 朴素贝叶斯在特征相关时性能一定很差。（ ） ###END###
+###QUESTION### paper_id: H78 | paper_label: (25-26-1)+计算机与人工智能学院+机器学习+黄迟+B | subject: 机器学习 | question_no: 8 | order: 23 | content: 留出法比交叉验证更节省计算资源。（ ） ###END###
+###QUESTION### paper_id: H78 | paper_label: (25-26-1)+计算机与人工智能学院+机器学习+黄迟+B | subject: 机器学习 | question_no: 9 | order: 24 | content: 梯度下降法中，批量梯度下降每次更新使用全部训练样本。（ ） ###END###
+###QUESTION### paper_id: H78 | paper_label: (25-26-1)+计算机与人工智能学院+机器学习+黄迟+B | subject: 机器学习 | question_no: 10 | order: 25 | content: 聚类属于监督学习任务。（ ） ###END###
+###QUESTION### paper_id: H78 | paper_label: (25-26-1)+计算机与人工智能学院+机器学习+黄迟+B | subject: 机器学习 | question_no: 1 | order: 26 | content: 欠拟合 [NL] 验证集 ###END###
+###QUESTION### paper_id: H78 | paper_label: (25-26-1)+计算机与人工智能学院+机器学习+黄迟+B | subject: 机器学习 | question_no: 3 | order: 27 | content: 精确率（Accurancy) ###END###
+###QUESTION### paper_id: H78 | paper_label: (25-26-1)+计算机与人工智能学院+机器学习+黄迟+B | subject: 机器学习 | question_no: 4 | order: 28 | content: 留一法 [NL] 泛化误差 [NL] 2 / 3 ###END###
+###QUESTION### paper_id: H78 | paper_label: (25-26-1)+计算机与人工智能学院+机器学习+黄迟+B | subject: 机器学习 | question_no: 1 | order: 29 | content: 监督学习与非监督学习有什么不同？ ###END###
+###QUESTION### paper_id: H78 | paper_label: (25-26-1)+计算机与人工智能学院+机器学习+黄迟+B | subject: 机器学习 | question_no: 2 | order: 30 | content: 为什么信息增益会偏向取值较多的特征？ ###END###
+###QUESTION### paper_id: H78 | paper_label: (25-26-1)+计算机与人工智能学院+机器学习+黄迟+B | subject: 机器学习 | question_no: 3 | order: 31 | content: 决策树剪枝的目的是什么？分为哪两类？ ###END###
+###QUESTION### paper_id: H78 | paper_label: (25-26-1)+计算机与人工智能学院+机器学习+黄迟+B | subject: 机器学习 | question_no: 4 | order: 32 | content: 简述支持向量机中“最大间隔”的含义。 ###END###
+###QUESTION### paper_id: H78 | paper_label: (25-26-1)+计算机与人工智能学院+机器学习+黄迟+B | subject: 机器学习 | question_no: 5 | order: 33 | content: KNN算法中 k 值选择对预测结果有何影响？ ###END###
+###QUESTION### paper_id: H78 | paper_label: (25-26-1)+计算机与人工智能学院+机器学习+黄迟+B | subject: 机器学习 | question_no: 1 | order: 34 | content: 有 5 个训练样本（二维）：A (1,1) 正类，B (2,2) 正类，C (4,5) 负类，D (5,5) 负类， [NL] E (1,2) 正类。测试点为 (2,3)，分别使用曼哈顿距离和欧氏距离，用 k 近邻（kNN，k=3） [NL] 算法判断其类别。 [NL] 场景描述：某高校希望预测学生是否可能在下学期退学，以便提前干预。已知可获取的 [NL] 数据包括：学生上学期GPA、出勤率、是否参与社团活动（是/否）、家庭经济状况（低/ [NL] 中/高）、是否有助学贷款（是/否）、历史退学记录（标签：退学/未退学）。 [NL] 问题：你觉得还应采集哪些数据用于问题分析？（5分）你会选择哪种机器学习方法？为 [NL] 什么？（5分）如何评估模型的有效性？（需说明至少两个评估指标及其适用原因，5分） [NL] 3 / 3 ###END###

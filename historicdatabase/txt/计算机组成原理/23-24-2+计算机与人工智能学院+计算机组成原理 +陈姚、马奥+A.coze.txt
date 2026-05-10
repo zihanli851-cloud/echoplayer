@@ -1,0 +1,14 @@
+###QUESTION### paper_id: H145 | paper_label: 23-24-2+计算机与人工智能学院+计算机组成原理 +陈姚、马奥+A | subject: 计算机组成原理 | question_no: 1 | order: 1 | content: 采用补码一位乘法计算 ，其中 , ； ###END###
+###QUESTION### paper_id: H145 | paper_label: 23-24-2+计算机与人工智能学院+计算机组成原理 +陈姚、马奥+A | subject: 计算机组成原理 | question_no: 2 | order: 2 | content: 采用原码不恢复余数法计算 ，其中 ， ； ###END###
+###QUESTION### paper_id: H145 | paper_label: 23-24-2+计算机与人工智能学院+计算机组成原理 +陈姚、马奥+A | subject: 计算机组成原理 | question_no: 7 | order: 3 | content: 某 16 位计算机的主存按字节编码，存取单位为 16 位；采用 16 位定长指令字格式； [NL] CPU采用单总线结构，主要部分如下图所示。图中 为通用寄存器； 为暂 [NL] 存器； 为移位寄存器，可实现直送(mov)、左移一位(left)和右移一位(right)三种操 [NL] 作，控制信号为 SRop，SR 的输出由信号 SRout 控制；ALU 可实现直送 A(mova)、 [NL] A加B（add)、A减 B（sub）、A与B（and）、A 或B（or）、非A（not）、A加1（inc） [NL] 七种操作，控制信号为 ALUop。回答下列问题：（18分，每问3分） ###END###
+###QUESTION### paper_id: H145 | paper_label: 23-24-2+计算机与人工智能学院+计算机组成原理 +陈姚、马奥+A | subject: 计算机组成原理 | question_no: 1 | order: 4 | content: 图中哪些寄存器是程序员可见的？为何要设置暂存器 T？ ###END###
+###QUESTION### paper_id: H145 | paper_label: 23-24-2+计算机与人工智能学院+计算机组成原理 +陈姚、马奥+A | subject: 计算机组成原理 | question_no: 2 | order: 5 | content: 控制信号ALUop 和SRop 的位数至少各是多少？ ###END###
+###QUESTION### paper_id: H145 | paper_label: 23-24-2+计算机与人工智能学院+计算机组成原理 +陈姚、马奥+A | subject: 计算机组成原理 | question_no: 3 | order: 6 | content: 控制信号SRout 所控制部件的名称或作用是什么？ ###END###
+###QUESTION### paper_id: H145 | paper_label: 23-24-2+计算机与人工智能学院+计算机组成原理 +陈姚、马奥+A | subject: 计算机组成原理 | question_no: 4 | order: 7 | content: 端点 中，哪些端点须连接到控制部件的输出端？ ###END###
+###QUESTION### paper_id: H145 | paper_label: 23-24-2+计算机与人工智能学院+计算机组成原理 +陈姚、马奥+A | subject: 计算机组成原理 | question_no: 5 | order: 8 | content: 为完善单总线数据通路，需要在端点 中相应的端点之间添加必要的 [NL] 连线。写出连线的起点和终点，以正确表示数据的流动方向。 ###END###
+###QUESTION### paper_id: H145 | paper_label: 23-24-2+计算机与人工智能学院+计算机组成原理 +陈姚、马奥+A | subject: 计算机组成原理 | question_no: 6 | order: 9 | content: 为什么二路选择器 MUX的一个输入端是 2？ ###END###
+###QUESTION### paper_id: H145 | paper_label: 23-24-2+计算机与人工智能学院+计算机组成原理 +陈姚、马奥+A | subject: 计算机组成原理 | question_no: 8 | order: 10 | content: 简要回答下列问题。（7分） ###END###
+###QUESTION### paper_id: H145 | paper_label: 23-24-2+计算机与人工智能学院+计算机组成原理 +陈姚、马奥+A | subject: 计算机组成原理 | question_no: 1 | order: 11 | content: 计算机系统为什么采用总线结构？（3分） ###END###
+###QUESTION### paper_id: H145 | paper_label: 23-24-2+计算机与人工智能学院+计算机组成原理 +陈姚、马奥+A | subject: 计算机组成原理 | question_no: 2 | order: 12 | content: 影响总线性能的因素有哪些？（2分） ###END###
+###QUESTION### paper_id: H145 | paper_label: 23-24-2+计算机与人工智能学院+计算机组成原理 +陈姚、马奥+A | subject: 计算机组成原理 | question_no: 3 | order: 13 | content: 假设某系统总线在一个总线周期中并行传输4字节信息，一个总线周期占用两个 [NL] 时钟周期，总线时钟频率为10MHz，则总线带宽是多少？（2分） ###END###
+###QUESTION### paper_id: H145 | paper_label: 23-24-2+计算机与人工智能学院+计算机组成原理 +陈姚、马奥+A | subject: 计算机组成原理 | question_no: 9 | order: 14 | content: 假设某计算机按字编址，cache 有 4 行，cache 和主存之间交换的块大小为 1 个字。 [NL] 若cache的内容初始为空，采用二路组相联映射方式和 LRU替换策略。访问的主存 [NL] 地址依次为0、4、8、2、0、6、8、6、4、8 时，计算命中cache的次数是多少？（6 [NL] 分） ###END###

@@ -1,0 +1,9 @@
+<div class="actions">
+  {% for action in actions %}
+  {% if action.href %}
+  <a href="{{ action.href }}" class="{% if action.class_name %}{{ action.class_name }}{% endif %}">{{ action.label }}</a>
+  {% else %}
+  <button type="button" id="{{ action.id }}" class="{% if action.class_name %}{{ action.class_name }}{% endif %}">{{ action.label }}</button>
+  {% endif %}
+  {% endfor %}
+</div>

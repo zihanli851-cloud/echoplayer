@@ -24,7 +24,8 @@ TEMP_DIR = DATA_DIR / "temp_uploads"
 AGENT_JOB_DIR = DATA_DIR / "agent_jobs"
 INDEX_DIR = DATA_DIR / "index"
 DATASET_DIR = DATA_DIR / "datasets"
-HISTORY_BANK_DIR = DATASET_DIR / "history_bank"
+LEGACY_HISTORY_BANK_DIR = DATASET_DIR / "history_bank"
+HISTORY_BANK_DIR = BASE_DIR / "historicdatabase"
 DB_PATH = DATA_DIR / "echopaper.db"
 DEFAULT_AGENT_JOB_RETENTION_SECONDS = 7 * 24 * 60 * 60
 
@@ -35,6 +36,7 @@ def ensure_runtime_dirs() -> None:
     ensure_directory(AGENT_JOB_DIR)
     ensure_directory(INDEX_DIR)
     ensure_directory(DATASET_DIR)
+    ensure_directory(LEGACY_HISTORY_BANK_DIR)
     ensure_directory(HISTORY_BANK_DIR)
 
 

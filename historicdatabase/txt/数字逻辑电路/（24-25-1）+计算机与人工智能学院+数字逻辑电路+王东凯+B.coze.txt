@@ -1,0 +1,27 @@
+###QUESTION### paper_id: H44 | paper_label: （24-25-1）+计算机与人工智能学院+数字逻辑电路+王东凯+B | subject: 数字逻辑电路 | question_no: 1 | order: 1 | content: 时序电路中一定包含（ ） [NL] A.触发器 B.组合逻辑电路 C.移位寄存器 D.译码器 ###END###
+###QUESTION### paper_id: H44 | paper_label: （24-25-1）+计算机与人工智能学院+数字逻辑电路+王东凯+B | subject: 数字逻辑电路 | question_no: 2 | order: 2 | content: 下列不同进制数中最小的一项是（ ） [NL] A. (110.1) B. (6.1) C. (6.1) D. (6.1) [NL] 2 8 10 16 ###END###
+###QUESTION### paper_id: H44 | paper_label: （24-25-1）+计算机与人工智能学院+数字逻辑电路+王东凯+B | subject: 数字逻辑电路 | question_no: 3 | order: 3 | content: 在（ ）情况下，逻辑函数𝐹 = (𝐴+𝐵)⋅(𝐶 +𝐷)的输出是“1”。 [NL] A. 全部输入为“0” B. A、B同时为“1” [NL] C. C、D同时为“1” D. 全部输入为“1” ###END###
+###QUESTION### paper_id: H44 | paper_label: （24-25-1）+计算机与人工智能学院+数字逻辑电路+王东凯+B | subject: 数字逻辑电路 | question_no: 4 | order: 4 | content: 逻辑表达式(𝐴+𝐵)⋅(𝐴+𝐶) =（ ） [NL] A. 𝐴⋅𝐵 +𝐴⋅𝐶 B. 𝐴+𝐵⋅𝐶 C. 𝐵+𝐴⋅𝐶 D. 𝐶 +𝐴⋅𝐵 ###END###
+###QUESTION### paper_id: H44 | paper_label: （24-25-1）+计算机与人工智能学院+数字逻辑电路+王东凯+B | subject: 数字逻辑电路 | question_no: 5 | order: 5 | content: 设𝐹 = 𝐴⋅𝐵̅ +𝐶 ⋅𝐷̅，则它的反函数是（ ） [NL] A. 𝐹̅ = 𝐴̅+𝐵⋅𝐶̅ +𝐷 B. 𝐹̅ = (𝐴+𝐵̅)⋅(𝐶 +𝐷̅) [NL] C. 𝐹̅ = (𝐴̅+𝐵)⋅(𝐶̅ +𝐷) D. 𝐹̅ = 𝐴̅̅̅ ⋅̅̅ 𝐵̅̅ ⋅𝐶̅̅̅ ⋅̅̅ 𝐷̅̅ ###END###
+###QUESTION### paper_id: H44 | paper_label: （24-25-1）+计算机与人工智能学院+数字逻辑电路+王东凯+B | subject: 数字逻辑电路 | question_no: 6 | order: 6 | content: 包含n个变量的逻辑函数的最大项是（ ） [NL] A. n个变量的积项，它包含全部n个变量，每个变量可用原变量或非变量 [NL] B. n个变量的和项，它包含全部n个变量，每个变量可用原变量或非变量 [NL] C. n个变量的积项，它包含全部n个变量，每个变量仅为原变量 [NL] D. n个变量的和项，它包含全部n个变量，每个变量仅为非变量 ###END###
+###QUESTION### paper_id: H44 | paper_label: （24-25-1）+计算机与人工智能学院+数字逻辑电路+王东凯+B | subject: 数字逻辑电路 | question_no: 7 | order: 7 | content: 四变量卡诺图中最小项𝑚 的相邻逻辑项是（ ） [NL] A. 𝑚 B. 𝑚 C. 𝑚 D. 𝑚 [NL] 3 15 1 11 ###END###
+###QUESTION### paper_id: H44 | paper_label: （24-25-1）+计算机与人工智能学院+数字逻辑电路+王东凯+B | subject: 数字逻辑电路 | question_no: 8 | order: 8 | content: 要使3-8译码器74x138能正常工作，使能控制端𝐺 、𝐺̅̅̅̅̅以及𝐺̅̅̅̅̅的电平信号应该是 [NL] 1 2𝐴 2𝐵 [NL] （ ） [NL] A.100 B.111 C.011 D.000 ###END###
+###QUESTION### paper_id: H44 | paper_label: （24-25-1）+计算机与人工智能学院+数字逻辑电路+王东凯+B | subject: 数字逻辑电路 | question_no: 9 | order: 9 | content: Moore型时序电路的输出（ ） [NL] A.只与当前外输入有关 B.仅与内部状态有关 [NL] C.与外输入和内部状态有关 D.与外输入和内部状态都无关 ###END###
+###QUESTION### paper_id: H44 | paper_label: （24-25-1）+计算机与人工智能学院+数字逻辑电路+王东凯+B | subject: 数字逻辑电路 | question_no: 10 | order: 10 | content: 同步时序电路与异步时序电路比较，其差异在于后者（ ） [NL] A.没有触发器 B.没有统一的时钟脉冲控制 [NL] C.没有稳定状态 D.输出只与内部状态有关 ###END###
+###QUESTION### paper_id: H44 | paper_label: （24-25-1）+计算机与人工智能学院+数字逻辑电路+王东凯+B | subject: 数字逻辑电路 | question_no: 1 | order: 11 | content: 三态器件不允许两个以及上的信号共用同一个信号线。（ ） ###END###
+###QUESTION### paper_id: H44 | paper_label: （24-25-1）+计算机与人工智能学院+数字逻辑电路+王东凯+B | subject: 数字逻辑电路 | question_no: 2 | order: 12 | content: S-R 锁存器的无效状态发生在𝑆 = ###END###
+###QUESTION### paper_id: H44 | paper_label: （24-25-1）+计算机与人工智能学院+数字逻辑电路+王东凯+B | subject: 数字逻辑电路 | question_no: 0 | order: 13 | content: 𝑅 = 1。（ ） ###END###
+###QUESTION### paper_id: H44 | paper_label: （24-25-1）+计算机与人工智能学院+数字逻辑电路+王东凯+B | subject: 数字逻辑电路 | question_no: 3 | order: 14 | content: 如果对0~99这一百个数进行编码，至少需要 7比特二进制码。（ ） ###END###
+###QUESTION### paper_id: H44 | paper_label: （24-25-1）+计算机与人工智能学院+数字逻辑电路+王东凯+B | subject: 数字逻辑电路 | question_no: 4 | order: 15 | content: 4位二进制补码的数值表示范围是[-7,7]。（ ） ###END###
+###QUESTION### paper_id: H44 | paper_label: （24-25-1）+计算机与人工智能学院+数字逻辑电路+王东凯+B | subject: 数字逻辑电路 | question_no: 5 | order: 16 | content: 超前进位加法器相对于串行加法器的优势是使用的逻辑门更少。（ ） ###END###
+###QUESTION### paper_id: H44 | paper_label: （24-25-1）+计算机与人工智能学院+数字逻辑电路+王东凯+B | subject: 数字逻辑电路 | question_no: 6 | order: 17 | content: 如果两个逻辑函数相同，则他们的逻辑表达式也相同。（ ） ###END###
+###QUESTION### paper_id: H44 | paper_label: （24-25-1）+计算机与人工智能学院+数字逻辑电路+王东凯+B | subject: 数字逻辑电路 | question_no: 7 | order: 18 | content: A、B、C 为逻辑变量，假如𝐴⋅𝐵 = 𝐴⋅𝐶，则𝐵 = 𝐶。（ ） ###END###
+###QUESTION### paper_id: H44 | paper_label: （24-25-1）+计算机与人工智能学院+数字逻辑电路+王东凯+B | subject: 数字逻辑电路 | question_no: 8 | order: 19 | content: 九进制数(17) 比十二进制数(11) 小。（ ） [NL] 7 12 ###END###
+###QUESTION### paper_id: H44 | paper_label: （24-25-1）+计算机与人工智能学院+数字逻辑电路+王东凯+B | subject: 数字逻辑电路 | question_no: 9 | order: 20 | content: 串行加法器按从高位到低位的顺序对多位数逐位进行相加。（ ） ###END###
+###QUESTION### paper_id: H44 | paper_label: （24-25-1）+计算机与人工智能学院+数字逻辑电路+王东凯+B | subject: 数字逻辑电路 | question_no: 10 | order: 21 | content: T触发器和JK触发器都具有状态翻转功能。（ ） ###END###
+###QUESTION### paper_id: H44 | paper_label: （24-25-1）+计算机与人工智能学院+数字逻辑电路+王东凯+B | subject: 数字逻辑电路 | question_no: 1 | order: 22 | content: 写出逻辑函数𝐹 = 𝐴⋅𝐷̅ +𝐴̅⋅𝐶的标准和。 ###END###
+###QUESTION### paper_id: H44 | paper_label: （24-25-1）+计算机与人工智能学院+数字逻辑电路+王东凯+B | subject: 数字逻辑电路 | question_no: 2 | order: 23 | content: 对逻辑函数𝐹(𝑊,𝑋,𝑌,𝑍) = ∑𝑚(0,2,6,13,14)+∑𝑑(8,9,10,12)使用卡诺图进行化简。 ###END###
+###QUESTION### paper_id: H44 | paper_label: （24-25-1）+计算机与人工智能学院+数字逻辑电路+王东凯+B | subject: 数字逻辑电路 | question_no: 3 | order: 24 | content: 请判断如下逻辑电路是否存在竞争-冒险？若存在，请判断其类型并给出分析过程。 ###END###
+###QUESTION### paper_id: H44 | paper_label: （24-25-1）+计算机与人工智能学院+数字逻辑电路+王东凯+B | subject: 数字逻辑电路 | question_no: 四 | order: 25 | content: （10分）设计一个组合逻辑电路进行8421BCD码的合数检测（即0、4、6、8、9）， [NL] 即输入为合数时输出1，否则为0。若规定输入为A、B、C、D，输出为F，请使用与 [NL] 非门和非门实现该组合逻辑电路。 ###END###
+###QUESTION### paper_id: H44 | paper_label: （24-25-1）+计算机与人工智能学院+数字逻辑电路+王东凯+B | subject: 数字逻辑电路 | question_no: 五 | order: 26 | content: （10分）请使用74x151多路复用器实现逻辑函数𝐹 = 𝐴⋅𝐵 +𝐵⋅𝐶 +𝐴⋅𝐶，画出逻辑 [NL] 电路图，给出必要的推导步骤以及说明。 ###END###
+###QUESTION### paper_id: H44 | paper_label: （24-25-1）+计算机与人工智能学院+数字逻辑电路+王东凯+B | subject: 数字逻辑电路 | question_no: 六 | order: 27 | content: （10分）74x163是一种具有同步清零端CLR和同步置数端LD的4位二进制加法计数 [NL] 器，请用它搭建一个模为102的计数器，给出逻辑图和必要说明。 ###END###

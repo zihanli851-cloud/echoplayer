@@ -1,336 +1,208 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>EchoPaper | 试卷智能审查系统</title>
-    <style>
-      :root {
-        --bg: #f5efe6;
-        --card: #fffaf4;
-        --line: #e7d9c7;
-        --text: #18332f;
-        --muted: #61746f;
-        --accent: #d1683d;
-        --accent-dark: #b7562d;
-        --success-bg: #e8f6ee;
-        --success-text: #1f6b45;
-        --error-bg: #fdeceb;
-        --error-text: #a63f37;
-      }
+{% extends "base.html" %}
 
-      * {
-        box-sizing: border-box;
-      }
+{% block title %}EchoPaper | 试卷智能审查系统{% endblock %}
+{% block body_class %}page-home{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="/static/css/home.css" />{% endblock %}
 
-      body {
-        margin: 0;
-        font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
-        color: var(--text);
-        background:
-          radial-gradient(circle at top left, rgba(209, 104, 61, 0.16), transparent 22%),
-          linear-gradient(135deg, #f7f0e7 0%, #f1e7d7 100%);
-      }
+{% block body %}
+<main class="page-shell page-shell--home">
+  {% include "partials/layout/top_nav.html" %}
 
-      .page {
-        width: min(960px, calc(100vw - 32px));
-        margin: 40px auto;
-      }
+  <section class="card home-hero">
+    {% set eyebrow = "EchoPaper / 上传工作台" %}
+    {% set title = "试卷上传与智能审查" %}
+    {% set description = "把上传入口、历史报告、题库管理和 Agent 状态放在同一个首页，帮助老师先发起审查，再围绕高风险结果做人工复核。" %}
+    {% set meta_items = ["支持 PDF / DOCX 审查", "代码版先返回", "Agent 异步回填", "适配历史报告与题库联动"] %}
+    {% set actions_html = '<a href=\"/reports\">查看历史报告</a><a href=\"/agent-jobs\">查看 Agent 任务</a>' %}
+    {% include "partials/layout/page_header.html" %}
 
-      .card {
-        background: rgba(255, 250, 244, 0.95);
-        border: 1px solid rgba(255, 255, 255, 0.8);
-        border-radius: 28px;
-        box-shadow: 0 16px 40px rgba(36, 42, 39, 0.08);
-        padding: 32px;
-      }
+    <div class="home-hero__summary section">
+      <article class="home-highlight-card">
+        <strong>主工作流</strong>
+        <span>上传试卷后先返回代码版审查结果，再由 Agent / Coze 在后台补充对照摘要。</span>
+      </article>
+      <article class="home-highlight-card">
+        <strong>适用范围</strong>
+        <span>当前优先支持可直接提取文字的 PDF / DOCX，扫描图片卷暂未接入 OCR 审查主链路。</span>
+      </article>
+      <article class="home-highlight-card">
+        <strong>复核重点</strong>
+        <span>系统会聚焦重复题、疑似原题、错字和切题风险，方便老师直接进入高风险区复核。</span>
+      </article>
+    </div>
 
-      h1 {
-        margin: 0 0 12px;
-        font-size: clamp(2rem, 4vw, 3rem);
-        line-height: 1.15;
-      }
+    {% if message %}
+    <div class="notice {{ message_type }}">{{ message }}</div>
+    {% endif %}
 
-      p {
-        margin: 0;
-        color: var(--muted);
-        line-height: 1.8;
-      }
+    <div class="home-workbench section">
+      <section class="home-card home-card--upload">
+        <div class="section-head">
+          <div>
+            <h2>发起新一轮审查</h2>
+            <p>保留原有提交链路，只把表单组织成更清晰的工作台主入口。</p>
+          </div>
+          <span class="badge info">工作台主入口</span>
+        </div>
 
-      .eyebrow {
-        margin-bottom: 10px;
-        color: var(--accent);
-        font-size: 0.9rem;
-        font-weight: 700;
-        letter-spacing: 0.16em;
-        text-transform: uppercase;
-      }
-
-      .form-grid {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 18px;
-        margin-top: 28px;
-      }
-
-      label {
-        display: grid;
-        gap: 8px;
-        font-weight: 700;
-      }
-
-      label span {
-        font-size: 0.95rem;
-      }
-
-      input,
-      select,
-      button {
-        min-height: 48px;
-        border-radius: 14px;
-        border: 1px solid var(--line);
-        font: inherit;
-      }
-
-      input,
-      select {
-        width: 100%;
-        padding: 0 14px;
-        background: #fff;
-      }
-
-      input[type="file"] {
-        padding: 10px 14px;
-      }
-
-      .full {
-        grid-column: 1 / -1;
-      }
-
-      .actions {
-        margin-top: 24px;
-        display: flex;
-        flex-wrap: wrap;
-        gap: 12px;
-        align-items: center;
-      }
-
-      button,
-      .secondary-link {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        min-height: 48px;
-        padding: 0 20px;
-        border-radius: 14px;
-        font-weight: 700;
-        text-decoration: none;
-      }
-
-      button {
-        background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%);
-        color: #fff;
-        cursor: pointer;
-      }
-
-      .secondary-link {
-        border: 1px solid var(--line);
-        background: #fff;
-        color: var(--text);
-      }
-
-      .notice {
-        margin-top: 20px;
-        padding: 14px 16px;
-        border-radius: 14px;
-        font-weight: 700;
-      }
-
-      .notice.success {
-        background: var(--success-bg);
-        color: var(--success-text);
-      }
-
-      .notice.error {
-        background: var(--error-bg);
-        color: var(--error-text);
-      }
-
-      .placeholder {
-        margin-top: 28px;
-        padding: 20px;
-        border-radius: 18px;
-        background: rgba(255, 255, 255, 0.72);
-        border: 1px dashed var(--line);
-      }
-
-      .placeholder h2 {
-        margin: 0 0 12px;
-        font-size: 1.2rem;
-      }
-
-      .placeholder ul {
-        margin: 14px 0 0;
-        padding-left: 20px;
-        color: var(--muted);
-        line-height: 1.8;
-      }
-
-      .result {
-        margin-top: 24px;
-        padding: 20px;
-        border-radius: 18px;
-        background: rgba(255, 255, 255, 0.78);
-        border: 1px solid var(--line);
-      }
-
-      .result h2 {
-        margin: 0 0 12px;
-        font-size: 1.2rem;
-      }
-
-      .result dl {
-        display: grid;
-        grid-template-columns: 140px 1fr;
-        gap: 10px 14px;
-        margin: 0;
-      }
-
-      .result dt {
-        color: var(--muted);
-        font-weight: 700;
-      }
-
-      .result dd {
-        margin: 0;
-      }
-
-      @media (max-width: 720px) {
-        .page {
-          width: min(100vw - 20px, 100%);
-          margin: 20px auto;
-        }
-
-        .card {
-          padding: 20px;
-        }
-
-        .form-grid,
-        .result dl {
-          grid-template-columns: 1fr;
-        }
-
-        .full {
-          grid-column: auto;
-        }
-      }
-    </style>
-  </head>
-  <body>
-    <main class="page">
-      <section class="card">
-        <p class="eyebrow">EchoPaper / 试卷智能审查系统</p>
-        <h1>试卷上传与智能审查</h1>
-        <p>上传 A/B 卷 PDF 后，系统会先生成代码版审查报告，并把 Agent / Coze 对照链路转入后台运行；如果 Coze 返回错误，报告页会显示后台任务状态说明。</p>
-
-        {% if message %}
-        <div class="notice {{ message_type }}">{{ message }}</div>
-        {% endif %}
-
-        <form action="/review" method="post" enctype="multipart/form-data" class="form-grid">
+        <form action="/review" method="post" enctype="multipart/form-data" class="form-grid upload-form-grid">
           <label>
             <span>教师姓名</span>
-            <input
-              type="text"
-              name="teacher_name"
-              value="{{ form_data.teacher_name }}"
-              placeholder="例如：李老师"
-              required
-            />
+            <input type="text" name="teacher_name" value="{{ form_data.teacher_name }}" placeholder="例如：李老师" required />
           </label>
 
           <label>
             <span>教师工号</span>
-            <input
-              type="text"
-              name="teacher_id"
-              value="{{ form_data.teacher_id }}"
-              placeholder="例如：T20260420"
-              required
-            />
+            <input type="text" name="teacher_id" value="{{ form_data.teacher_id }}" placeholder="例如：T20260420" required />
           </label>
 
-          <label class="full">
+          <label class="upload-form-grid__full">
             <span>科目选择</span>
             <select name="subject" required>
               {% for value, label in subject_options %}
-              <option value="{{ value }}" {% if form_data.subject == value %}selected{% endif %}>
-                {{ label }}
-              </option>
+              <option value="{{ value }}" {% if form_data.subject == value %}selected{% endif %}>{{ label }}</option>
               {% endfor %}
             </select>
           </label>
 
           <label>
-            <span>A 卷 PDF 上传</span>
-            <input type="file" name="paper_a" accept="application/pdf,.pdf" required />
+            <span>A 卷文件</span>
+            <input type="file" name="paper_a" accept="application/pdf,.pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.docx" required />
+            <small class="form-help">必传。优先使用可直接提取文本的 PDF / DOCX。</small>
           </label>
 
           <label>
-            <span>B 卷 PDF 上传</span>
-            <input type="file" name="paper_b" accept="application/pdf,.pdf" />
+            <span>B 卷文件</span>
+            <input type="file" name="paper_b" accept="application/pdf,.pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.docx" />
+            <small class="form-help">选传。用于 A/B 卷交叉查重和结构对照。</small>
           </label>
 
-          <div class="actions full">
+          <div class="actions upload-form-grid__full">
             <button type="submit">提交并生成审查报告</button>
             <a class="secondary-link" href="/reports">查看历史报告</a>
-            <a class="secondary-link" href="/agent-jobs">查看 Agent 任务</a>
             <a class="secondary-link" href="/history-bank">管理历史题库</a>
           </div>
         </form>
-
-        <section class="placeholder">
-          <h2>MVP 当前流程</h2>
-          <ul>
-            <li>接收教师信息与试卷文件，并完成 PDF 校验</li>
-            <li>使用统一上传流程保存 PDF，代码版先返回报告，Agent 版进入后台任务</li>
-            <li>完成文本提取、基础切题、查重和错字检查</li>
-            <li>Agent 链路会直接把本地解析后的题目 JSON 传给 Coze 工作流</li>
-            <li>生成代码主视图报告，并展示 Agent 后台任务状态、摘要或 Coze 错误</li>
-          </ul>
-        </section>
-
-        {% if result %}
-        <section class="result">
-          <h2>提交结果</h2>
-          <dl>
-            <dt>教师姓名</dt>
-            <dd>{{ result.teacher_name }}</dd>
-
-            <dt>教师工号</dt>
-            <dd>{{ result.teacher_id }}</dd>
-
-            <dt>科目</dt>
-            <dd>{{ result.subject }}</dd>
-
-            <dt>A 卷文件</dt>
-            <dd>{{ result.paper_a_name }}</dd>
-
-            <dt>B 卷文件</dt>
-            <dd>{{ result.paper_b_name or "未上传" }}</dd>
-
-            <dt>A 卷临时文件</dt>
-            <dd>{{ result.paper_a_temp }}</dd>
-
-            <dt>B 卷临时文件</dt>
-            <dd>{{ result.paper_b_temp or "未生成" }}</dd>
-
-            <dt>处理状态</dt>
-            <dd>{{ result.status }}</dd>
-          </dl>
-        </section>
-        {% endif %}
       </section>
-    </main>
-  </body>
-</html>
+
+      <aside class="home-side-stack">
+        <section class="home-card">
+          <div class="section-head">
+            <div>
+              <h2>快速入口</h2>
+              <p>把连续使用最频繁的入口集中在首页右侧。</p>
+            </div>
+          </div>
+          <div class="quick-entry-grid">
+            <a class="quick-entry-card" href="/reports">
+              <strong>历史报告</strong>
+              <span>回看近期审查快照、导出记录和待复核项。</span>
+            </a>
+            <a class="quick-entry-card" href="/history-bank">
+              <strong>历史题库</strong>
+              <span>上传历史 PDF、刷新缓存并触发后台重建索引。</span>
+            </a>
+            <a class="quick-entry-card" href="/agent-jobs">
+              <strong>Agent 任务</strong>
+              <span>排查 Coze 对照链路的排队、失败和完成状态。</span>
+            </a>
+          </div>
+        </section>
+
+        <section class="home-card">
+          <div class="section-head">
+            <div>
+              <h2>使用边界</h2>
+              <p>先让老师明确当前系统适合处理什么、不适合处理什么。</p>
+            </div>
+          </div>
+          <div class="home-note-list">
+            <article>
+              <strong>当前支持</strong>
+              <p>可直接提取文本的 PDF / DOCX，适合命题审查、错字检查和重复题比对。</p>
+            </article>
+            <article>
+              <strong>当前限制</strong>
+              <p>扫描图片卷尚未接入稳定 OCR 主链路，复杂版式仍需关注切题与解析风险提示。</p>
+            </article>
+            <article>
+              <strong>人工复核角色</strong>
+              <p>EchoPaper 负责收敛高风险区，最终确认仍以老师人工判断为准。</p>
+            </article>
+          </div>
+        </section>
+      </aside>
+    </div>
+
+    <div class="home-grid section">
+      <section class="home-card">
+        <div class="section-head">
+          <div>
+            <h2>当前审查流程</h2>
+            <p>让首页就能说明“上传之后会发生什么”。</p>
+          </div>
+        </div>
+        <ol class="step-list">
+          <li>接收教师信息与试卷文件，完成文件类型校验并写入统一处理目录。</li>
+          <li>代码版链路优先执行文本提取、规则切题、查重、历史题库比对和本地错字检查。</li>
+          <li>Agent / Coze 链路异步运行，把本地解析后的题目结构继续送入工作流做对照审查。</li>
+          <li>报告页先展示代码版结果，再补充 Agent 任务状态、摘要结果或错误说明。</li>
+        </ol>
+      </section>
+
+      <section class="home-card">
+        <div class="section-head">
+          <div>
+            <h2>本轮前端已覆盖能力</h2>
+            <p>首页同步说明当前工作台和报告体系已经具备的重点能力。</p>
+          </div>
+        </div>
+        <div class="capability-grid">
+          <article class="capability-card">
+            <strong>统一工作台导航</strong>
+            <p>上传、历史报告、题库管理、Agent 排查使用同一套布局和导航语义。</p>
+          </article>
+          <article class="capability-card">
+            <strong>风险优先报告</strong>
+            <p>报告页已经按高风险优先、筛选复核、长明细折叠的路径重组。</p>
+          </article>
+          <article class="capability-card">
+            <strong>快照与后台统一</strong>
+            <p>历史快照页、报告列表、题库页和任务页都切到统一后台工作台样式。</p>
+          </article>
+          <article class="capability-card">
+            <strong>移动端与打印态</strong>
+            <p>本轮补齐首页、报告页和后台页的窄屏布局与打印时的无干扰展示。</p>
+          </article>
+        </div>
+      </section>
+    </div>
+
+    {% if result %}
+    <section class="section">
+      <div class="home-card home-card--result">
+        <div class="section-head">
+          <div>
+            <h2>最近一次提交结果</h2>
+            <p>保留原有回显能力，方便在上传后快速检查提交参数是否正确。</p>
+          </div>
+          <span class="badge type">已提交</span>
+        </div>
+        <dl class="result-grid">
+          <dt>教师姓名</dt><dd>{{ result.teacher_name }}</dd>
+          <dt>教师工号</dt><dd>{{ result.teacher_id }}</dd>
+          <dt>科目</dt><dd>{{ result.subject }}</dd>
+          <dt>A 卷文件</dt><dd>{{ result.paper_a_name }}</dd>
+          <dt>B 卷文件</dt><dd>{{ result.paper_b_name or "未上传" }}</dd>
+          <dt>A 卷临时文件</dt><dd>{{ result.paper_a_temp }}</dd>
+          <dt>B 卷临时文件</dt><dd>{{ result.paper_b_temp or "未生成" }}</dd>
+          <dt>处理状态</dt><dd>{{ result.status }}</dd>
+        </dl>
+      </div>
+    </section>
+    {% endif %}
+  </section>
+
+  {% include "partials/layout/footer.html" %}
+</main>
+{% endblock %}

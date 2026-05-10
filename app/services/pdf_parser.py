@@ -31,6 +31,8 @@ class PdfTextSnapshot:
     page_count: int
     text_char_count: int
     image_count: int
+    ocr_attempted: bool = False
+    ocr_succeeded: bool = False
 
 
 class CodePdfParser(TextExtractionProvider):
@@ -61,7 +63,9 @@ class RoutedPdfParser(TextExtractionProvider):
         self.ocr_threshold = _resolve_ocr_threshold(ocr_threshold)
         self.ocr_provider = ocr_provider
         self.provider_note = ""
+        self.last_note = ""
         self._paper_notes: dict[str, str] = {}
+        self.last_snapshot: PdfTextSnapshot | None = None
 
     def extract(self, pdf_path: Path) -> tuple[str, int]:
         snapshot = _extract_snapshot_with_pdfplumber(pdf_path)
@@ -69,6 +73,8 @@ class RoutedPdfParser(TextExtractionProvider):
         if _should_run_ocr(snapshot, self.ocr_threshold):
             snapshot, ocr_note = self._try_ocr(pdf_path, snapshot)
             note = f"{note}{ocr_note}"
+        self.last_snapshot = snapshot
+        self.last_note = note
         self._paper_notes[pdf_path.name] = note
         self.provider_note = "；".join(
             f"{name}: {self._paper_notes[name]}" for name in sorted(self._paper_notes)
@@ -76,6 +82,14 @@ class RoutedPdfParser(TextExtractionProvider):
         return snapshot.text, snapshot.page_count
 
     def _try_ocr(self, pdf_path: Path, snapshot: PdfTextSnapshot) -> tuple[PdfTextSnapshot, str]:
+        snapshot = PdfTextSnapshot(
+            text=snapshot.text,
+            page_count=snapshot.page_count,
+            text_char_count=snapshot.text_char_count,
+            image_count=snapshot.image_count,
+            ocr_attempted=True,
+            ocr_succeeded=False,
+        )
         if self.ocr_provider is None:
             return snapshot, " OCR Provider 未配置，已回退到图片占位符。"
 
@@ -94,6 +108,8 @@ class RoutedPdfParser(TextExtractionProvider):
                 page_count=snapshot.page_count,
                 text_char_count=snapshot.text_char_count + len(ocr_text.strip()),
                 image_count=snapshot.image_count,
+                ocr_attempted=True,
+                ocr_succeeded=True,
             ),
             " OCR 已识别图片内文字，并追加到文本末尾。",
         )
@@ -114,10 +130,14 @@ class AgentPdfParser(TextExtractionProvider):
 
     def __init__(self, fallback_provider: TextExtractionProvider | None = None) -> None:
         self.fallback_provider = fallback_provider or CodePdfParser()
+        self.last_snapshot = None
+        self.last_note = ""
 
     def extract(self, pdf_path: Path) -> tuple[str, int]:
         result = self.fallback_provider.extract(pdf_path)
         fallback_note = getattr(self.fallback_provider, "provider_note", "")
+        self.last_snapshot = getattr(self.fallback_provider, "last_snapshot", None)
+        self.last_note = str(getattr(self.fallback_provider, "last_note", fallback_note) or "")
         self.provider_note = "Agent 流程先复用本地 PDF 解析，再调用 Coze 工作流。"
         if fallback_note:
             self.provider_note = f"{self.provider_note}{fallback_note}"

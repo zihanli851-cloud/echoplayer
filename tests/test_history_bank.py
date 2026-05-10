@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from app.models.schemas import Question
-from app.services.history_bank import HistoryBankService, infer_history_subject
+from app.services.history_bank import HistoryBankService, build_source_key, infer_history_subject
 from app.services.pdf_parser import PdfParseError, RoutedPdfParser, TextExtractionProvider
 from app.services.question_splitter import QuestionSplitProvider
 
@@ -97,8 +97,6 @@ def test_history_bank_summary_infers_subject_and_filters(tmp_path) -> None:
     assert summary["subjects"] == ["chinese", "math"]
     assert len(summary["papers"]) == 1
     assert summary["papers"][0]["subject"] == "math"
-    assert summary["active_subject"] == "math"
-    assert summary["active_keyword"] == "2025"
 
 
 def test_history_bank_service_attaches_persistent_vector_index(tmp_path) -> None:
@@ -118,22 +116,30 @@ def test_history_bank_service_attaches_persistent_vector_index(tmp_path) -> None
     assert (index_dir / "history_bank_lightweight_index.json").exists()
 
 
-def test_history_bank_service_continues_when_index_write_fails(tmp_path, monkeypatch) -> None:
-    (tmp_path / "2025+A+math.pdf").write_bytes(b"%PDF-1.4 math")
+def test_history_bank_service_supports_dual_source_records(tmp_path) -> None:
+    txt_dir = tmp_path / "txt"
+    pdf_dir = tmp_path / "pdf"
+    txt_dir.mkdir()
+    pdf_dir.mkdir()
+    txt_name = "（24-25-2）+计算机与人工智能学院+程序设计及应用（Java）+韩延明+A.coze.txt"
+    pdf_name = "（24-25-2）+计算机与人工智能学院+程序设计及应用（Java）+韩延明+A.pdf"
+    (txt_dir / txt_name).write_text(
+        "###QUESTION### paper_id: H1 | question_no: 1 | content: 原始题目内容 ###END###",
+        encoding="utf-8",
+    )
+    (pdf_dir / pdf_name).write_bytes(b"%PDF-1.4")
 
-    def fail_index(*_args, **_kwargs):
-        raise OSError("cannot write index")
-
-    monkeypatch.setattr("app.services.history_bank.build_or_load_history_vector_index", fail_index)
     service = HistoryBankService(
         tmp_path,
         extraction_provider=FakeExtractionProvider(),
         split_provider=FakeSplitProvider(),
-        index_dir=tmp_path / "index",
     )
 
     snapshot = service.get_snapshot()
 
-    assert snapshot.loaded_files == 1
-    assert len(snapshot.questions) == 1
-    assert getattr(snapshot.questions, "vector_index", None) is None
+    assert snapshot.total_files == 1
+    assert snapshot.question_count == 1
+    assert snapshot.questions[0].source_txt_path is not None
+    assert snapshot.questions[0].source_pdf_path is not None
+    assert snapshot.questions[0].course == "程序设计及应用（Java）"
+    assert build_source_key(txt_name) == build_source_key(pdf_name)

@@ -349,6 +349,7 @@ def test_report_snapshots_page_lists_saved_reports(tmp_path) -> None:
     assert "待复核 1" in response.text
     assert "1 次" in response.text
     assert "最近 PDF" in response.text
+    assert "当前结果数" in response.text
 
 
 def test_report_snapshots_page_filters_saved_reports(tmp_path) -> None:
@@ -495,6 +496,9 @@ def test_report_snapshot_page_renders_saved_payload(tmp_path) -> None:
     assert "a.pdf" in response.text
     assert "两边切题结果一致" in response.text
     assert "/api/reports/export-json" in response.text
+    assert "导出记录" in response.text
+    assert "历史快照 / 只读恢复报告" in response.text
+    assert "snapshot-overview" in response.text
 
 
 def test_report_snapshot_page_backfills_completed_agent_payload(tmp_path) -> None:
@@ -661,6 +665,76 @@ def test_report_snapshot_page_renders_review_status_controls(tmp_path) -> None:
     assert f'data-review-item-id="{item_id}"' in response.text
     assert "updateExportPayloadReviewStatus" in response.text
     assert "确认重复" in response.text
+
+
+def test_review_report_page_shows_pending_review_summary_when_needed(tmp_path, monkeypatch) -> None:
+    from app.models.schemas import Question, UploadedPaper
+    from app.services.dual_run import PipelineRunResult, ReviewPipeline
+
+    def fake_pipeline_run(self, uploaded_papers, *, history_questions=None, history_bank_summary=None):
+        question = Question(
+            question_id="A-1",
+            paper_id="A",
+            question_no="1",
+            order=1,
+            content="示例题目",
+            raw_block="示例题目",
+        )
+        paper = uploaded_papers[0].model_copy(update={"page_count": 1, "text_content": question.content})
+        return PipelineRunResult(
+            pipeline_name=self.pipeline_name,
+            uploaded_papers=[paper],
+            questions=[question],
+            similarity_matches=[
+                build_match().model_copy(
+                    update={
+                        "comparison_type": "cross_paper",
+                        "source_paper_id": "A",
+                        "source_question_no": "1",
+                        "target_paper_id": "B",
+                        "target_question_no": "1",
+                        "review_status": "待确认",
+                    }
+                )
+            ],
+            spellcheck_issues=[],
+            module_metadata={
+                "extract": {"provider_note": "", "is_placeholder": False},
+                "split": {"provider_note": "", "is_placeholder": False},
+                "compare": {"provider_note": "", "is_placeholder": False},
+                "spellcheck": {"provider_note": "", "is_placeholder": False},
+            },
+            history_bank_summary=history_bank_summary or {},
+        )
+
+    monkeypatch.delenv("ENABLE_ASYNC_AGENT", raising=False)
+    monkeypatch.setattr(ReviewPipeline, "run", fake_pipeline_run)
+
+    class EmptyHistorySnapshot:
+        questions = []
+
+        @staticmethod
+        def to_summary() -> dict:
+            return {"total_files": 0, "loaded_files": 0, "question_count": 0, "papers": [], "failures": []}
+
+    class EmptyHistoryService:
+        @staticmethod
+        def get_snapshot():
+            return EmptyHistorySnapshot()
+
+    with TestClient(app) as client:
+        store = ReviewStore(tmp_path / "echopaper.db")
+        client.app.state.review_store = store
+        client.app.state.history_bank_service = EmptyHistoryService()
+        response = client.post(
+            "/review",
+            data={"teacher_name": "李老师", "teacher_id": "T001", "subject": "chinese"},
+            files={"paper_a": ("a.pdf", b"%PDF-1.4 fake", "application/pdf")},
+        )
+
+    assert response.status_code == 200
+    assert "待确认聚合视图" in response.text
+    assert "跳到该区块" in response.text
 
 
 def test_report_snapshot_page_payload_reflects_review_status_after_patch(tmp_path) -> None:

@@ -1,0 +1,12 @@
+###QUESTION### paper_id: H120 | paper_label: 18-19-1+经济信息工程学院+编译原理+杨彬+B | subject: 编译原理 | question_no: 1 | order: 1 | content: 词法分析的结果可以用一张表格来表示，请回答如下问题： [NL] (1) 该表格通常包含几列？这些列的意义是什么？ [NL] (2) 该表格能否用更少的列表示？请解释原因。 ###END###
+###QUESTION### paper_id: H120 | paper_label: 18-19-1+经济信息工程学院+编译原理+杨彬+B | subject: 编译原理 | question_no: 2 | order: 2 | content: 请说明《数据结构》课程对学习《编译原理》的作用？要求列举本课程中用到的 [NL] 数据结构，以及它们出现在哪些算法或分析中。 ###END###
+###QUESTION### paper_id: H120 | paper_label: 18-19-1+经济信息工程学院+编译原理+杨彬+B | subject: 编译原理 | question_no: 3 | order: 3 | content: 在自下而上的语法分析中，分析的关键是什么？ ###END###
+###QUESTION### paper_id: H120 | paper_label: 18-19-1+经济信息工程学院+编译原理+杨彬+B | subject: 编译原理 | question_no: 二 | order: 4 | content: 词法分析（25分） [NL] 有正规式：(a|b)*a(a|b) ###END###
+###QUESTION### paper_id: H120 | paper_label: 18-19-1+经济信息工程学院+编译原理+杨彬+B | subject: 编译原理 | question_no: 1 | order: 5 | content: 给出等价的NFA（10分） ###END###
+###QUESTION### paper_id: H120 | paper_label: 18-19-1+经济信息工程学院+编译原理+杨彬+B | subject: 编译原理 | question_no: 2 | order: 6 | content: 给出等价的DFA（10分） ###END###
+###QUESTION### paper_id: H120 | paper_label: 18-19-1+经济信息工程学院+编译原理+杨彬+B | subject: 编译原理 | question_no: 3 | order: 7 | content: 给出最小化的DFA（5分） ###END###
+###QUESTION### paper_id: H120 | paper_label: 18-19-1+经济信息工程学院+编译原理+杨彬+B | subject: 编译原理 | question_no: 三 | order: 8 | content: 语法分析（25分） [NL] 有文法G(D)： [NL] D → TL T → int | real [NL] L → id R R → , id R | ε [NL] 其中D、T、L、R为非终结符，其他为终结符。 ###END###
+###QUESTION### paper_id: H120 | paper_label: 18-19-1+经济信息工程学院+编译原理+杨彬+B | subject: 编译原理 | question_no: 1 | order: 9 | content: 计算该文法每个非终结符的FIRST集和FOLLOW集。（10分） ###END###
+###QUESTION### paper_id: H120 | paper_label: 18-19-1+经济信息工程学院+编译原理+杨彬+B | subject: 编译原理 | question_no: 2 | order: 10 | content: 证明该文法是LL(1)的。（6分） ###END###
+###QUESTION### paper_id: H120 | paper_label: 18-19-1+经济信息工程学院+编译原理+杨彬+B | subject: 编译原理 | question_no: 3 | order: 11 | content: 给出所得LL(1)文法的预测分析表（9分） ###END###
+###QUESTION### paper_id: H120 | paper_label: 18-19-1+经济信息工程学院+编译原理+杨彬+B | subject: 编译原理 | question_no: 1 | order: 12 | content: 请对SLR分析和LR(1)分析之间的相同点和不同点进行比较说明。 [NL] 写出表达式 a+b*(c+d/e)的后缀式和三地址码 ###END###

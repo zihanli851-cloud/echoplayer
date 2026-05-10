@@ -317,6 +317,7 @@ def test_agent_jobs_page_lists_persisted_jobs(tmp_path) -> None:
     assert "job-completed" in response.text
     assert "题目 3 道，重复 1 条，错字 2 条" in response.text
     assert 'href="/api/agent-jobs/job-completed"' in response.text
+    assert "最近任务数" in response.text
 
 
 def test_review_route_uses_async_agent_job_by_default(monkeypatch, tmp_path) -> None:
@@ -380,6 +381,10 @@ def test_review_route_uses_async_agent_job_by_default(monkeypatch, tmp_path) -> 
         assert "打开历史报告" in response.text
         assert "/api/reports/export-json" in response.text
         assert "renderAgentResultPayload" in response.text
+        assert "风险导航" in response.text
+        assert 'id="filter-risk-only"' in response.text
+        assert 'id="filter-paper-scope"' in response.text
+        assert "附录与诊断" in response.text
         assert "完整对照回填将在下一阶段接入" not in response.text
         match = re.search(r'data-agent-job-id="([^"]+)"', response.text)
         assert match is not None
