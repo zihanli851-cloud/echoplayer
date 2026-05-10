@@ -1,4 +1,5 @@
 from pathlib import Path
+import json
 import os
 from urllib.parse import quote
 
@@ -16,6 +17,7 @@ from app.services.comparator import (
 from app.services.coze_service import CozeService
 from app.services.dual_run import DualRunReviewService, ReviewPipeline
 from app.services.history_bank import HistoryBankService
+from app.services.history_bank_jobs import HistoryBankRefreshJobStore
 from app.services.ocr import build_ocr_provider_from_env
 from app.services.pdf_parser import AgentPdfParser, PdfParseError, RoutedPdfParser
 from app.services.question_splitter import AgentQuestionSplitter, RuleQuestionSplitter
@@ -150,12 +152,15 @@ async def history_bank(
             "active_subject": subject,
             "active_keyword": q,
         }
+    review_store = _get_review_store(request)
+    history_bank_jobs = review_store.list_history_bank_jobs(limit=5)
 
     return templates.TemplateResponse(
         request,
         "history_bank.html",
         {
             "summary": summary,
+            "history_bank_jobs": history_bank_jobs,
             "message": message,
             "message_type": message_type,
         },
@@ -230,6 +235,27 @@ async def delete_history_bank_file(
         message=message,
         message_type=message_type,
     )
+
+
+@router.post("/history-bank/rebuild")
+async def rebuild_history_bank(request: Request) -> JSONResponse:
+    history_bank_service = _get_history_bank_service(request)
+    job_store = _get_history_bank_job_store(request)
+    job = job_store.submit(history_bank_service)
+    return JSONResponse(job.to_summary())
+
+
+@router.get("/api/history-bank/jobs/{job_id}")
+async def get_history_bank_job(request: Request, job_id: str) -> JSONResponse:
+    job_store = _get_history_bank_job_store(request)
+    job = job_store.get(job_id)
+    if job is None:
+        review_store = _get_review_store(request)
+        persisted_job = review_store.get_history_bank_job(job_id)
+        if persisted_job is not None:
+            return JSONResponse(persisted_job)
+        raise HTTPException(status_code=404, detail="历史题库任务不存在。")
+    return JSONResponse(job.to_summary())
 
 
 @router.post("/review", response_class=HTMLResponse)
@@ -448,26 +474,22 @@ async def update_review_item(request: Request, item_id: str, payload: dict) -> J
     except KeyError as exc:
         raise HTTPException(status_code=404, detail="复核项不存在。") from exc
 
+    item = review_store.get_item(item_id)
+    if item is not None:
+        review_store.update_report_snapshot_review_status(
+            session_id=item["session_id"],
+            item_id=item_id,
+            match_id=item["match_id"],
+            status=status,
+        )
+
     return JSONResponse({"ok": True, "item": updated})
 
 
 @router.post("/api/reports/export-pdf")
 async def export_report_pdf(request: Request, payload: dict) -> Response:
     pdf_result = build_report_pdf(payload)
-    session_id = str(payload.get("review_session", {}).get("session_id", "")).strip()
-    if session_id:
-        review_store = getattr(request.app.state, "review_store", None)
-        if review_store is None:
-            review_store = ReviewStore(getattr(request.app.state, "db_path", BASE_DIR / "data" / "echopaper.db"))
-        try:
-            review_store.record_export(
-                session_id=session_id,
-                export_format="pdf",
-                file_path=pdf_result.filename,
-            )
-        except Exception:
-            # Export history is helpful bookkeeping; it should not block the file download.
-            pass
+    _record_report_export(request, payload, export_format="pdf", file_path=pdf_result.filename)
 
     return Response(
         content=pdf_result.content,
@@ -481,12 +503,52 @@ async def export_report_pdf(request: Request, payload: dict) -> Response:
     )
 
 
+@router.post("/api/reports/export-json")
+async def export_report_json(request: Request, payload: dict) -> Response:
+    filename = "echopaper-report.json"
+    _record_report_export(request, payload, export_format="json", file_path=filename)
+    content = json.dumps(payload, ensure_ascii=False, indent=2)
+    return Response(
+        content=content,
+        media_type="application/json; charset=utf-8",
+        headers={
+            "Content-Disposition": (
+                f"attachment; filename=\"{filename}\"; "
+                f"filename*=UTF-8''{quote(filename)}"
+            ),
+        },
+    )
+
+
+@router.get("/reports", response_class=HTMLResponse)
+async def report_snapshots(
+    request: Request,
+    limit: int = Query(50, ge=1, le=200),
+    subject: str = Query(""),
+    q: str = Query(""),
+) -> HTMLResponse:
+    review_store = _get_review_store(request)
+    snapshots = review_store.list_report_snapshots(limit=limit, subject=subject, keyword=q)
+    return templates.TemplateResponse(
+        request,
+        "reports.html",
+        {
+            "snapshots": snapshots,
+            "limit": limit,
+            "active_subject": subject,
+            "active_keyword": q,
+            "subject_options": SUBJECT_OPTIONS,
+        },
+    )
+
+
 @router.get("/api/reports/{session_id}")
 async def get_report_snapshot(request: Request, session_id: str) -> JSONResponse:
     review_store = _get_review_store(request)
     snapshot = review_store.get_report_snapshot(session_id)
     if snapshot is None:
         raise HTTPException(status_code=404, detail="报告快照不存在。")
+    snapshot = _backfill_snapshot_agent_payload(review_store, snapshot)
     return JSONResponse(snapshot)
 
 
@@ -497,10 +559,14 @@ async def report_snapshot(request: Request, session_id: str) -> HTMLResponse:
     if snapshot is None:
         raise HTTPException(status_code=404, detail="报告快照不存在。")
 
+    snapshot = _backfill_snapshot_agent_payload(review_store, snapshot)
     return templates.TemplateResponse(
         request,
         "report_snapshot.html",
-        _build_report_snapshot_context(snapshot),
+        _build_report_snapshot_context(
+            snapshot,
+            export_history=review_store.list_export_history(session_id, limit=10),
+        ),
     )
 
 
@@ -522,6 +588,20 @@ async def get_agent_job(request: Request, job_id: str) -> JSONResponse:
         payload["result"] = pipeline_result_summary(job.result)
         payload["result_payload"] = pipeline_result_payload(job.result)
     return JSONResponse(payload)
+
+
+@router.get("/agent-jobs", response_class=HTMLResponse)
+async def agent_jobs(request: Request, limit: int = Query(50, ge=1, le=200)) -> HTMLResponse:
+    review_store = _get_review_store(request)
+    jobs = review_store.list_agent_jobs(limit=limit)
+    return templates.TemplateResponse(
+        request,
+        "agent_jobs.html",
+        {
+            "jobs": jobs,
+            "limit": limit,
+        },
+    )
 
 
 def _attach_review_persistence(
@@ -550,6 +630,18 @@ def _attach_review_persistence(
         row["review_session_id"] = session_id
         row["review_item_id"] = item_id
 
+    export_duplicate_rows = (
+        template_context.setdefault("export_payload", {})
+        .setdefault("duplicate_comparison", {})
+        .setdefault("code_rows", [])
+    )
+    for row in export_duplicate_rows:
+        if not isinstance(row, dict):
+            continue
+        item_id = item_ids.get(row.get("match_id"))
+        row["review_session_id"] = session_id
+        row["review_item_id"] = item_id
+
     template_context["review_session_id"] = session_id
     template_context.setdefault("export_payload", {})["review_session"] = {
         "session_id": session_id,
@@ -570,6 +662,65 @@ def _persist_report_snapshot(request: Request, template_context: dict) -> None:
     review_store.upsert_report_snapshot(session_id, export_payload)
 
 
+def _record_report_export(request: Request, payload: dict, *, export_format: str, file_path: str) -> None:
+    session_id = str(payload.get("review_session", {}).get("session_id", "")).strip()
+    if not session_id:
+        return
+
+    review_store = getattr(request.app.state, "review_store", None)
+    if review_store is None:
+        review_store = ReviewStore(getattr(request.app.state, "db_path", BASE_DIR / "data" / "echopaper.db"))
+    try:
+        review_store.record_export(
+            session_id=session_id,
+            export_format=export_format,
+            file_path=file_path,
+        )
+    except Exception:
+        # Export history is helpful bookkeeping; it should not block the file download.
+        pass
+
+
+def _backfill_snapshot_agent_payload(review_store: ReviewStore, snapshot: dict) -> dict:
+    payload = snapshot.get("payload", {}) if isinstance(snapshot, dict) else {}
+    if not isinstance(payload, dict):
+        return snapshot
+
+    agent_job = payload.get("agent_job", {})
+    if not isinstance(agent_job, dict):
+        return snapshot
+
+    job_id = str(agent_job.get("job_id", "")).strip()
+    if not job_id:
+        return snapshot
+
+    persisted_job = review_store.get_agent_job(job_id)
+    if persisted_job is None:
+        return snapshot
+
+    changed = False
+    updated_agent_job = dict(agent_job)
+    for key in ("status", "created_at", "updated_at", "pipeline_name", "paper_count", "error", "work_dir", "has_result"):
+        if key in persisted_job and updated_agent_job.get(key) != persisted_job[key]:
+            updated_agent_job[key] = persisted_job[key]
+            changed = True
+    if updated_agent_job != agent_job:
+        payload["agent_job"] = updated_agent_job
+        changed = True
+
+    has_snapshot_payload = bool(payload.get("agent_result_payload"))
+    persisted_payload = persisted_job.get("result_payload")
+    if not has_snapshot_payload and isinstance(persisted_payload, dict) and persisted_payload:
+        payload["agent_result_payload"] = persisted_payload
+        changed = True
+
+    session_id = str(snapshot.get("session_id", "")).strip()
+    if changed and session_id:
+        review_store.upsert_report_snapshot(session_id, payload)
+        snapshot = review_store.get_report_snapshot(session_id) or snapshot
+    return snapshot
+
+
 def _get_review_store(request: Request) -> ReviewStore:
     review_store = getattr(request.app.state, "review_store", None)
     if review_store is not None:
@@ -580,7 +731,7 @@ def _get_review_store(request: Request) -> ReviewStore:
     return review_store
 
 
-def _build_report_snapshot_context(snapshot: dict) -> dict:
+def _build_report_snapshot_context(snapshot: dict, *, export_history: list[dict] | None = None) -> dict:
     payload = snapshot.get("payload", {}) if isinstance(snapshot, dict) else {}
     report = payload.get("report", {}) if isinstance(payload, dict) else {}
     dashboard = report.get("dashboard", {}) if isinstance(report, dict) else {}
@@ -593,6 +744,7 @@ def _build_report_snapshot_context(snapshot: dict) -> dict:
         "session_id": snapshot.get("session_id", ""),
         "created_at": snapshot.get("created_at", ""),
         "updated_at": snapshot.get("updated_at", ""),
+        "export_history": export_history or [],
         "payload": payload,
         "report": report,
         "dashboard": dashboard,
@@ -625,6 +777,16 @@ def _get_history_bank_service(request: Request) -> HistoryBankService:
     )
     request.app.state.history_bank_service = service
     return service
+
+
+def _get_history_bank_job_store(request: Request) -> HistoryBankRefreshJobStore:
+    store = getattr(request.app.state, "history_bank_job_store", None)
+    if store is not None:
+        return store
+
+    store = HistoryBankRefreshJobStore(review_store=_get_review_store(request))
+    request.app.state.history_bank_job_store = store
+    return store
 
 
 def _get_agent_job_store(request: Request) -> AgentJobStore:

@@ -231,6 +231,94 @@ def test_agent_job_persists_status_for_route_fallback(tmp_path) -> None:
     assert payload["result_payload"]["questions"][0]["paper_id"] == "A"
 
 
+def test_review_store_lists_agent_jobs(tmp_path) -> None:
+    review_store = ReviewStore(tmp_path / "echopaper.db")
+    review_store.upsert_agent_job_summary(
+        {
+            "job_id": "job-queued",
+            "status": "queued",
+            "created_at": "2026-01-01T00:00:00",
+            "updated_at": "2026-01-01T00:00:00",
+            "pipeline_name": "Agent",
+            "paper_count": 1,
+            "error": "",
+            "has_result": False,
+            "work_dir": "data/agent_jobs/job-queued",
+        }
+    )
+    review_store.upsert_agent_job_summary(
+        {
+            "job_id": "job-completed",
+            "status": "completed",
+            "created_at": "2026-01-01T00:00:00",
+            "updated_at": "2026-01-01T00:00:01",
+            "pipeline_name": "Agent",
+            "paper_count": 2,
+            "error": "",
+            "has_result": True,
+            "work_dir": "data/agent_jobs/job-completed",
+        },
+        result_summary={
+            "pipeline_name": "Agent",
+            "question_count": 3,
+            "duplicate_count": 1,
+            "spellcheck_count": 2,
+            "module_metadata": {},
+        },
+        result_payload={
+            "pipeline_name": "Agent",
+            "uploaded_papers": [],
+            "questions": [{"question_id": "A-1", "paper_id": "A", "question_no": "1", "order": 1, "content": "Question"}],
+            "similarity_matches": [],
+            "spellcheck_issues": [],
+            "module_metadata": {},
+            "history_bank_summary": {},
+        },
+    )
+
+    jobs = review_store.list_agent_jobs(limit=10)
+
+    assert [job["job_id"] for job in jobs] == ["job-completed", "job-queued"]
+    assert jobs[0]["paper_count"] == 2
+    assert jobs[0]["has_result"] is True
+    assert jobs[0]["result"]["question_count"] == 3
+    assert jobs[0]["result_payload"]["questions"][0]["question_id"] == "A-1"
+
+
+def test_agent_jobs_page_lists_persisted_jobs(tmp_path) -> None:
+    review_store = ReviewStore(tmp_path / "echopaper.db")
+    review_store.upsert_agent_job_summary(
+        {
+            "job_id": "job-completed",
+            "status": "completed",
+            "created_at": "2026-01-01T00:00:00",
+            "updated_at": "2026-01-01T00:00:01",
+            "pipeline_name": "Agent",
+            "paper_count": 2,
+            "error": "",
+            "has_result": True,
+            "work_dir": "data/agent_jobs/job-completed",
+        },
+        result_summary={
+            "pipeline_name": "Agent",
+            "question_count": 3,
+            "duplicate_count": 1,
+            "spellcheck_count": 2,
+            "module_metadata": {},
+        },
+    )
+
+    with TestClient(app) as client:
+        client.app.state.review_store = review_store
+        response = client.get("/agent-jobs")
+
+    assert response.status_code == 200
+    assert "Agent 后台任务列表" in response.text
+    assert "job-completed" in response.text
+    assert "题目 3 道，重复 1 条，错字 2 条" in response.text
+    assert 'href="/api/agent-jobs/job-completed"' in response.text
+
+
 def test_review_route_uses_async_agent_job_by_default(monkeypatch, tmp_path) -> None:
     class EmptyHistorySnapshot:
         questions = []
@@ -289,6 +377,8 @@ def test_review_route_uses_async_agent_job_by_default(monkeypatch, tmp_path) -> 
         assert response.status_code == 200
         assert "agent-job-panel" in response.text
         assert "agent-job-detail" in response.text
+        assert "打开历史报告" in response.text
+        assert "/api/reports/export-json" in response.text
         assert "renderAgentResultPayload" in response.text
         assert "完整对照回填将在下一阶段接入" not in response.text
         match = re.search(r'data-agent-job-id="([^"]+)"', response.text)

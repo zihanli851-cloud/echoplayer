@@ -11,6 +11,7 @@ from app.routes.nuwa import router as nuwa_router
 from app.routes.web import router as web_router
 from app.services.agent_jobs import AgentJobStore
 from app.services.history_bank import HistoryBankService
+from app.services.history_bank_jobs import HistoryBankRefreshJobStore
 from app.services.ocr import build_ocr_provider_from_env
 from app.services.pdf_parser import RoutedPdfParser
 from app.services.review_store import ReviewStore
@@ -85,6 +86,7 @@ async def lifespan(app: FastAPI):
         extraction_provider=RoutedPdfParser(ocr_provider=build_ocr_provider_from_env()),
         index_dir=INDEX_DIR,
     )
+    app.state.history_bank_job_store = HistoryBankRefreshJobStore(review_store=review_store)
     app.state.review_store = review_store
     app.state.db_path = DB_PATH
     yield

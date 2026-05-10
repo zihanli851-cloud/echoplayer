@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EchoPaper 历史报告</title>
+    <style>
+      :root {
+        --bg: #f5f7fb;
+        --panel: #ffffff;
+        --text: #202734;
+        --muted: #667085;
+        --line: #d8dee9;
+        --accent: #0f766e;
+        --danger: #b42318;
+        --warn: #b54708;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: "Microsoft YaHei", "PingFang SC", Arial, sans-serif;
+      }
+
+      .page {
+        width: min(1180px, calc(100% - 32px));
+        margin: 0 auto;
+        padding: 28px 0 48px;
+      }
+
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 22px;
+        margin-bottom: 18px;
+      }
+
+      .topbar {
+        display: flex;
+        justify-content: space-between;
+        gap: 18px;
+        align-items: flex-start;
+      }
+
+      h1,
+      h2,
+      h3 {
+        margin: 0;
+        line-height: 1.25;
+      }
+
+      p {
+        margin: 8px 0 0;
+        color: var(--muted);
+        line-height: 1.7;
+      }
+
+      .eyebrow {
+        color: var(--accent);
+        font-size: 0.84rem;
+        font-weight: 700;
+        margin: 0 0 8px;
+      }
+
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        justify-content: flex-end;
+      }
+
+      .actions a,
+      .actions button {
+        min-height: 40px;
+        padding: 0 14px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: #fff;
+        color: var(--text);
+        font: inherit;
+        font-weight: 700;
+        text-decoration: none;
+        cursor: pointer;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+      }
+
+      .stat {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 14px;
+        background: #fbfcfe;
+      }
+
+      .stat strong {
+        display: block;
+        font-size: 1.8rem;
+        line-height: 1.1;
+      }
+
+      .stat span {
+        display: block;
+        margin-top: 6px;
+        color: var(--muted);
+        font-size: 0.92rem;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 14px;
+      }
+
+      th,
+      td {
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--line);
+        text-align: left;
+        vertical-align: top;
+      }
+
+      th {
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+
+      .badge {
+        display: inline-block;
+        padding: 3px 8px;
+        border-radius: 999px;
+        background: #e8f5f3;
+        color: var(--accent);
+        font-weight: 700;
+        font-size: 0.82rem;
+      }
+
+      .badge.warn {
+        background: #fff4e5;
+        color: var(--warn);
+      }
+
+      .badge.danger {
+        background: #fff0ee;
+        color: var(--danger);
+      }
+
+      .empty {
+        padding: 16px;
+        border: 1px dashed var(--line);
+        border-radius: 8px;
+        color: var(--muted);
+        margin-top: 14px;
+      }
+
+      select.review-select {
+        min-height: 36px;
+        padding: 0 10px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: #fff;
+        color: var(--text);
+        font: inherit;
+      }
+
+      .save-state {
+        display: block;
+        margin-top: 6px;
+        color: var(--muted);
+        font-size: 0.82rem;
+      }
+
+      @media (max-width: 900px) {
+        .topbar {
+          display: grid;
+        }
+
+        .actions {
+          justify-content: flex-start;
+        }
+
+        .grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+
+      @media (max-width: 560px) {
+        .grid {
+          grid-template-columns: 1fr;
+        }
+
+        th,
+        td {
+          padding: 9px 8px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <section class="panel topbar">
+        <div>
+          <p class="eyebrow">EchoPaper / 历史报告</p>
+          <h1>{{ report.teacher_name or "未命名教师" }} 的审查报告</h1>
+          <p>
+            Session：{{ session_id }}
+            ｜ 科目：{{ report.subject or "未记录" }}
+            ｜ 快照更新：{{ updated_at }}
+          </p>
+        </div>
+        <div class="actions">
+          <a href="/">返回上传页</a>
+          <button type="button" id="export-json">导出快照 JSON</button>
+          <button type="button" id="export-pdf">导出审查 PDF</button>
+          <button type="button" onclick="window.print()">打印页面</button>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>报告总览</h2>
+        <div class="grid">
+          <div class="stat"><strong>{{ dashboard.paper_a_question_count or 0 }}</strong><span>A 卷题目数</span></div>
+          <div class="stat"><strong>{{ dashboard.paper_b_question_count or 0 }}</strong><span>B 卷题目数</span></div>
+          <div class="stat"><strong>{{ dashboard.suspected_duplicate_total or 0 }}</strong><span>疑似重复</span></div>
+          <div class="stat"><strong>{{ dashboard.spellcheck_issue_total or 0 }}</strong><span>错字问题</span></div>
+          <div class="stat"><strong>{{ dashboard.history_match_total or 0 }}</strong><span>历史题库命中</span></div>
+          <div class="stat"><strong>{{ duplicate_summary.agent_only or 0 }}</strong><span>Agent 重复新增</span></div>
+          <div class="stat"><strong>{{ spellcheck_summary.agent_only or 0 }}</strong><span>Agent 错字新增</span></div>
+          <div class="stat"><strong>{{ question_quality | length }}</strong><span>切题复核提示</span></div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>上传试卷</h2>
+        {% if uploaded_papers %}
+        <table>
+          <thead>
+            <tr>
+              <th>卷别</th>
+              <th>文件名</th>
+              <th>页数</th>
+              <th>文本长度</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for paper in uploaded_papers %}
+            <tr>
+              <td>{{ paper.paper_id }}</td>
+              <td>{{ paper.filename }}</td>
+              <td>{{ paper.page_count }}</td>
+              <td>{{ paper.text_content | default("", true) | length }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <div class="empty">快照中没有上传试卷信息。</div>
+        {% endif %}
+      </section>
+
+      <section class="panel">
+        <h2>导出记录</h2>
+        {% if export_history %}
+        <table>
+          <thead>
+            <tr>
+              <th>格式</th>
+              <th>导出时间</th>
+              <th>文件名</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in export_history %}
+            <tr>
+              <td>{{ item.format | upper }}</td>
+              <td>{{ item.exported_at }}</td>
+              <td>{{ item.file_path or "-" }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <div class="empty">当前报告还没有 PDF 导出记录。</div>
+        {% endif %}
+      </section>
+
+      {% if agent_job %}
+      <section class="panel">
+        <h2>Agent 后台任务</h2>
+        <p>任务 ID：{{ agent_job.job_id }} ｜ 状态：{{ agent_job.status }} ｜ 更新时间：{{ agent_job.updated_at }}</p>
+        {% if agent_questions or agent_matches or agent_issues %}
+        <p>
+          已保存 Agent 明细：切题 {{ agent_questions | length }} 道，
+          重复 {{ agent_matches | length }} 条，错字 {{ agent_issues | length }} 条。
+        </p>
+        {% else %}
+        <p>当前快照尚未包含 Agent 完成明细，可通过任务接口继续查询任务状态。</p>
+        {% endif %}
+      </section>
+      {% endif %}
+
+      <section class="panel">
+        <h2>双链路模块状态</h2>
+        {% if dual_run_sections %}
+        <table>
+          <thead>
+            <tr>
+              <th>模块</th>
+              <th>状态</th>
+              <th>说明</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for section in dual_run_sections %}
+            <tr>
+              <td>{{ section.module_name }}</td>
+              <td><span class="badge {% if section.status != '一致' %}warn{% endif %}">{{ section.status }}</span></td>
+              <td>{{ section.diff_summary }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <div class="empty">快照中没有双链路模块状态。</div>
+        {% endif %}
+      </section>
+
+      <section class="panel">
+        <h2>重复题明细</h2>
+        {% if duplicate_rows %}
+        <table>
+          <thead>
+            <tr>
+              <th>对比项</th>
+              <th>相似度</th>
+              <th>等级</th>
+              <th>状态</th>
+              <th>人工复核</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in duplicate_rows[:12] %}
+            <tr>
+              <td>{{ row.comparison_label }}</td>
+              <td>{{ row.score }}%</td>
+              <td><span class="badge {% if row.level == '高度重复' %}danger{% else %}warn{% endif %}">{{ row.level }}</span></td>
+              <td>{{ row.compare_status }}</td>
+              <td>
+                {% if row.review_item_id %}
+                <select class="review-select" data-review-item-id="{{ row.review_item_id }}">
+                  {% for option in row.review_options or ["待确认", "确认重复", "排除误报"] %}
+                  <option value="{{ option }}" {% if option == (row.review_status or "待确认") %}selected{% endif %}>{{ option }}</option>
+                  {% endfor %}
+                </select>
+                <span class="save-state" data-review-state-for="{{ row.review_item_id }}"></span>
+                {% else %}
+                {{ row.review_status or "待确认" }}
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <div class="empty">没有重复题命中。</div>
+        {% endif %}
+      </section>
+
+      <section class="panel">
+        <h2>错字问题</h2>
+        {% if spellcheck_rows %}
+        <table>
+          <thead>
+            <tr>
+              <th>来源</th>
+              <th>题号</th>
+              <th>问题</th>
+              <th>建议</th>
+              <th>状态</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in spellcheck_rows[:12] %}
+            <tr>
+              <td>{{ row.paper_label }}</td>
+              <td>{{ row.question_no }}</td>
+              <td>{{ row.issue_text }}</td>
+              <td>{{ row.suggestion }}</td>
+              <td>{{ row.compare_status }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <div class="empty">没有错字问题。</div>
+        {% endif %}
+      </section>
+    </main>
+
+    <script>
+      (function () {
+        const payload = {{ payload | tojson }};
+        document.getElementById("export-json").addEventListener("click", async function () {
+          const button = this;
+          const text = button.textContent;
+          button.disabled = true;
+          button.textContent = "导出中...";
+          try {
+            const response = await fetch("/api/reports/export-json", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload)
+            });
+            if (!response.ok) throw new Error("JSON export failed");
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = "echopaper-report.json";
+            link.click();
+            URL.revokeObjectURL(url);
+          } catch (error) {
+            alert("JSON 导出失败，请稍后重试。");
+          } finally {
+            button.disabled = false;
+            button.textContent = text;
+          }
+        });
+
+        document.getElementById("export-pdf").addEventListener("click", async function () {
+          const button = this;
+          const text = button.textContent;
+          button.disabled = true;
+          button.textContent = "生成中...";
+          try {
+            const response = await fetch("/api/reports/export-pdf", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload)
+            });
+            if (!response.ok) throw new Error("PDF export failed");
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = "echopaper-report.pdf";
+            link.click();
+            URL.revokeObjectURL(url);
+          } catch (error) {
+            alert("PDF 导出失败，请稍后重试。");
+          } finally {
+            button.disabled = false;
+            button.textContent = text;
+          }
+        });
+
+        document.querySelectorAll(".review-select").forEach(function (select) {
+          select.addEventListener("change", async function () {
+            const itemId = select.dataset.reviewItemId;
+            const state = document.querySelector(`[data-review-state-for="${itemId}"]`);
+            if (!itemId) return;
+            if (state) state.textContent = "保存中...";
+            select.disabled = true;
+            try {
+              const response = await fetch(`/api/review-items/${itemId}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ status: select.value })
+              });
+              if (!response.ok) throw new Error("review update failed");
+              updateExportPayloadReviewStatus(itemId, select.value);
+              if (state) state.textContent = "已保存";
+            } catch (error) {
+              if (state) state.textContent = "保存失败";
+            } finally {
+              select.disabled = false;
+            }
+          });
+        });
+
+        function updateExportPayloadReviewStatus(itemId, status) {
+          const rows = payload?.duplicate_comparison?.code_rows;
+          if (!Array.isArray(rows)) return;
+          rows.forEach(function (row) {
+            if (row && row.review_item_id === itemId) {
+              row.review_status = status;
+            }
+          });
+        }
+      })();
+    </script>
+  </body>
+</html>

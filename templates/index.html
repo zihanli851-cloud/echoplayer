@@ -109,14 +109,34 @@
 
       .actions {
         margin-top: 24px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        align-items: center;
+      }
+
+      button,
+      .secondary-link {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 48px;
+        padding: 0 20px;
+        border-radius: 14px;
+        font-weight: 700;
+        text-decoration: none;
       }
 
       button {
-        padding: 0 20px;
         background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%);
         color: #fff;
-        font-weight: 700;
         cursor: pointer;
+      }
+
+      .secondary-link {
+        border: 1px solid var(--line);
+        background: #fff;
+        color: var(--text);
       }
 
       .notice {
@@ -263,6 +283,9 @@
 
           <div class="actions full">
             <button type="submit">提交并生成审查报告</button>
+            <a class="secondary-link" href="/reports">查看历史报告</a>
+            <a class="secondary-link" href="/agent-jobs">查看 Agent 任务</a>
+            <a class="secondary-link" href="/history-bank">管理历史题库</a>
           </div>
         </form>
 

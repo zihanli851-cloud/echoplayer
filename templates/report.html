@@ -885,16 +885,37 @@
         const exportButton = document.getElementById("export-json");
         const exportPdfButton = document.getElementById("export-pdf");
         const exportPayload = {{ export_payload | tojson }};
-        exportButton.addEventListener("click", function () {
-          const blob = new Blob([JSON.stringify(exportPayload, null, 2)], {
-            type: "application/json;charset=utf-8"
-          });
-          const url = URL.createObjectURL(blob);
-          const link = document.createElement("a");
-          link.href = url;
-          link.download = "echopaper-dual-run-report.json";
-          link.click();
-          URL.revokeObjectURL(url);
+        exportButton.addEventListener("click", async function () {
+          const originalText = exportButton.textContent;
+          exportButton.disabled = true;
+          exportButton.textContent = "导出中...";
+          try {
+            const response = await fetch("/api/reports/export-json", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json"
+              },
+              body: JSON.stringify(exportPayload)
+            });
+            if (!response.ok) {
+              throw new Error("JSON 导出失败");
+            }
+            const blob = await response.blob();
+            const disposition = response.headers.get("Content-Disposition") || "";
+            const filenameMatch = disposition.match(/filename="([^"]+)"/);
+            const filename = filenameMatch ? filenameMatch[1] : "echopaper-report.json";
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = filename;
+            link.click();
+            URL.revokeObjectURL(url);
+          } catch (error) {
+            alert("JSON 导出失败，请稍后重试。");
+          } finally {
+            exportButton.disabled = false;
+            exportButton.textContent = originalText;
+          }
         });
 
         exportPdfButton.addEventListener("click", async function () {
@@ -1089,6 +1110,7 @@
               if (!response.ok) {
                 throw new Error("保存失败");
               }
+              updateExportPayloadReviewStatus(itemId, select.value);
               if (state) state.textContent = "已保存";
             } catch (error) {
               if (state) state.textContent = "保存失败";
@@ -1097,6 +1119,16 @@
             }
           });
         });
+
+        function updateExportPayloadReviewStatus(itemId, status) {
+          const rows = exportPayload?.duplicate_comparison?.code_rows;
+          if (!Array.isArray(rows)) return;
+          rows.forEach(function (row) {
+            if (row && row.review_item_id === itemId) {
+              row.review_status = status;
+            }
+          });
+        }
       })();
     </script>
   </body>

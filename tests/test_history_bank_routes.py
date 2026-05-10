@@ -1,12 +1,15 @@
 from dataclasses import dataclass
 from pathlib import Path
 from types import SimpleNamespace
+import time
 
 from fastapi.testclient import TestClient
 
 from app.main import app
 from app.routes.web import _get_history_bank_service, _resolve_history_bank_pdf_path
+from app.services.history_bank_jobs import HistoryBankRefreshJobStore
 from app.services.pdf_parser import RoutedPdfParser
+from app.services.review_store import ReviewStore
 
 
 @dataclass
@@ -57,6 +60,12 @@ class FakeHistoryBankService:
 
     def invalidate_cache(self) -> None:
         self.invalidated = True
+
+
+class FailingHistoryBankService(FakeHistoryBankService):
+    def get_snapshot(self, *, force_refresh: bool = False) -> FakeHistorySnapshot:
+        self.refresh_flags.append(force_refresh)
+        raise RuntimeError("boom")
 
 
 def test_history_bank_page_renders_summary(tmp_path) -> None:
@@ -160,6 +169,146 @@ def test_history_bank_delete_rejects_path_traversal(tmp_path) -> None:
         assert "无效的历史题库文件路径" in response.text
     finally:
         outside.unlink(missing_ok=True)
+
+
+def test_history_bank_rebuild_runs_in_background_and_reports_result(tmp_path) -> None:
+    (tmp_path / "history.pdf").write_bytes(b"%PDF-1.4")
+    fake_service = FakeHistoryBankService(tmp_path)
+
+    with TestClient(app) as client:
+        client.app.state.history_bank_dir = tmp_path
+        client.app.state.history_bank_service = fake_service
+
+        submit_response = client.post("/history-bank/rebuild")
+        assert submit_response.status_code == 200
+        job_id = submit_response.json()["job_id"]
+
+        payload = {}
+        for _ in range(20):
+            job_response = client.get(f"/api/history-bank/jobs/{job_id}")
+            assert job_response.status_code == 200
+            payload = job_response.json()
+            if payload["status"] == "completed":
+                break
+            time.sleep(0.05)
+
+    assert payload["status"] == "completed"
+    assert payload["result"]["total_files"] == 1
+    assert payload["result"]["question_count"] == 3
+    assert fake_service.refresh_flags == [True]
+
+
+def test_history_bank_job_api_returns_404_for_missing_job(tmp_path) -> None:
+    with TestClient(app) as client:
+        client.app.state.history_bank_dir = tmp_path
+        response = client.get("/api/history-bank/jobs/missing")
+
+    assert response.status_code == 404
+
+
+def test_history_bank_job_status_falls_back_to_persisted_store(tmp_path) -> None:
+    (tmp_path / "history.pdf").write_bytes(b"%PDF-1.4")
+    fake_service = FakeHistoryBankService(tmp_path)
+    review_store = ReviewStore(tmp_path / "echopaper.db")
+
+    with TestClient(app) as client:
+        client.app.state.history_bank_dir = tmp_path
+        client.app.state.history_bank_service = fake_service
+        client.app.state.review_store = review_store
+        client.app.state.history_bank_job_store = HistoryBankRefreshJobStore(review_store=review_store)
+
+        submit_response = client.post("/history-bank/rebuild")
+        assert submit_response.status_code == 200
+        job_id = submit_response.json()["job_id"]
+
+        payload = {}
+        for _ in range(20):
+            job_response = client.get(f"/api/history-bank/jobs/{job_id}")
+            assert job_response.status_code == 200
+            payload = job_response.json()
+            if payload["status"] == "completed":
+                break
+            time.sleep(0.05)
+
+        client.app.state.history_bank_job_store = HistoryBankRefreshJobStore(review_store=review_store)
+        fallback_response = client.get(f"/api/history-bank/jobs/{job_id}")
+
+    assert payload["status"] == "completed"
+    assert fallback_response.status_code == 200
+    fallback_payload = fallback_response.json()
+    assert fallback_payload["status"] == "completed"
+    assert fallback_payload["result"]["question_count"] == 3
+
+
+def test_history_bank_page_lists_recent_rebuild_jobs(tmp_path) -> None:
+    fake_service = FakeHistoryBankService(tmp_path)
+    review_store = ReviewStore(tmp_path / "echopaper.db")
+    review_store.upsert_history_bank_job_summary(
+        {
+            "job_id": "job-history-1",
+            "status": "completed",
+            "created_at": "2026-01-01T00:00:00",
+            "updated_at": "2026-01-01T00:00:01",
+            "error": "",
+            "has_result": True,
+        },
+        result_summary={
+            "total_files": 2,
+            "loaded_files": 2,
+            "failed_files": 0,
+            "question_count": 6,
+            "papers": [],
+            "failures": [],
+        },
+    )
+
+    with TestClient(app) as client:
+        client.app.state.history_bank_dir = tmp_path
+        client.app.state.history_bank_service = fake_service
+        client.app.state.review_store = review_store
+
+        response = client.get("/history-bank")
+
+    assert response.status_code == 200
+    assert "最近重建任务" in response.text
+    assert "job-history-1" in response.text
+    assert "题目 6 道" in response.text
+
+
+def test_history_bank_failed_job_is_persisted_and_listed(tmp_path) -> None:
+    failing_service = FailingHistoryBankService(tmp_path)
+    review_store = ReviewStore(tmp_path / "echopaper.db")
+
+    with TestClient(app) as client:
+        client.app.state.history_bank_dir = tmp_path
+        client.app.state.history_bank_service = failing_service
+        client.app.state.review_store = review_store
+        client.app.state.history_bank_job_store = HistoryBankRefreshJobStore(review_store=review_store)
+
+        submit_response = client.post("/history-bank/rebuild")
+        assert submit_response.status_code == 200
+        job_id = submit_response.json()["job_id"]
+
+        payload = {}
+        for _ in range(20):
+            job_response = client.get(f"/api/history-bank/jobs/{job_id}")
+            assert job_response.status_code == 200
+            payload = job_response.json()
+            if payload["status"] == "failed":
+                break
+            time.sleep(0.05)
+
+        client.app.state.history_bank_job_store = HistoryBankRefreshJobStore(review_store=review_store)
+        fallback_response = client.get(f"/api/history-bank/jobs/{job_id}")
+        page_response = client.get("/history-bank")
+
+    assert payload["status"] == "failed"
+    assert payload["error"] == "boom"
+    assert fallback_response.status_code == 200
+    assert fallback_response.json()["status"] == "failed"
+    assert page_response.status_code == 200
+    assert job_id in page_response.text
+    assert "boom" in page_response.text
 
 
 def test_resolve_history_bank_pdf_path_rejects_non_pdf(tmp_path) -> None:

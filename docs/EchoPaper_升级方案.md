@@ -11,23 +11,23 @@ EchoPaper 是一个试卷智能审查 MVP，支持上传 A/B 卷 PDF，自动完
 
 ### 1.1 现有核心链路
 
-一次请求同时运行两条链路：
+当前请求先运行代码版主链路并返回报告；Agent/Coze 对照链路默认异步后台运行，完成后由页面轮询回填结果。
 
 ```text
 代码版主链路：
-pdfplumber 提取文本 -> 规则切题 -> 查重 -> 错字检查 -> 报告生成
+RoutedPdfParser 提取文本/图片占位/OCR 路由 -> 升级版规则切题 -> 文本+轻量向量查重 -> 错字检查 -> 报告生成 -> SQLite 快照
 
 Agent/Coze 对照链路：
-复用本地文本提取 -> Coze 切题/查重/错字 -> 与代码版对照
+后台任务复制 PDF -> 复用本地解析路由 -> Coze 切题/查重/错字 -> 状态和完整结果写入 SQLite -> 报告页轮询回填
 ```
 
 当前限制：
 
-- 仅支持可直接提取文本的 PDF。
-- 切题为基础规则。
-- 查重为纯文本相似度。
-- 人工复核状态未持久化。
-- Agent 链路同步等待，存在超时风险。
+- OCR Provider 链路已接入，但本机尚未完成 Tesseract/Poppler 或 PaddleOCR 真实样本验收。
+- 切题已接入公式清洗、碎片合并和低置信度提示，但复杂版式仍需人工复核。
+- 查重已接入文本相似度和轻量本地向量召回；真正的 FAISS / sentence-transformers 语义索引尚未接入。
+- 人工复核状态已写入 SQLite，并同步到当前导出 payload 和历史报告快照。
+- Agent 链路已默认异步后台运行，但完成时间仍取决于 Coze 工作流和网络状态。
 
 ### 1.2 现有查重阈值
 
@@ -368,6 +368,7 @@ questions = RuleQuestionSplitter().split(text, paper_id)
 - [x] ~~切题引擎替换：公式符号清洗 + 碎片合并~~
 - [x] ~~低置信度切题结果标记：无明确题号兜底切题会进入报告复核提示~~
 - [x] ~~人工复核状态持久化到 SQLite~~
+- [x] ~~人工复核状态同步到报告快照和当前导出 payload~~
 - [x] ~~解析路由器：识别文字版、含图片、疑似扫描 PDF，并输出诊断提示~~
 - [x] ~~OCR Provider 可插拔链路接入：扫描倾向 PDF 可调用 OCR Provider 并追加识别文本~~
 - [ ] OCR 运行环境安装与真实样本验收：Tesseract/Poppler 或 PaddleOCR
@@ -376,13 +377,25 @@ questions = RuleQuestionSplitter().split(text, paper_id)
 - [ ] FAISS / sentence-transformers 真实语义索引接入与验收
 - [x] ~~历史题库管理页第一阶段：上传、查看、刷新本地历史题库 PDF~~
 - [x] ~~历史题库管理页第二阶段：科目/关键词筛选 + 单文件安全删除~~
+- [x] ~~历史题库后台重建第一阶段：后台解析题库并重建轻量索引，页面可查询任务状态~~
+- [x] ~~历史题库后台任务持久化第一阶段：任务状态与完成摘要写入 SQLite，接口可 fallback 查询~~
+- [x] ~~历史题库后台任务列表第一阶段：管理页展示最近重建任务和完成摘要~~
 - [x] ~~Agent/Coze 链路异步化第一阶段：代码版先返回，Agent 后台任务 + 状态查询~~
 - [x] ~~Agent 后台任务持久化第一阶段：任务状态与完成摘要写入 SQLite~~
 - [x] ~~Agent 完整结果持久化第一阶段：保存 result_payload，接口可返回完整 Agent 明细~~
 - [x] ~~Agent 明细回填第一阶段：报告页轮询完成后展示 Agent 切题/重复/错字明细~~
 - [x] ~~Agent job 工作目录清理第一阶段：过期 completed/failed 目录自动清理，SQLite 记录保留~~
+- [x] ~~Agent 后台任务列表第一阶段：提供 /agent-jobs 页面浏览最近任务~~
 - [x] ~~报告快照持久化第一阶段：export_payload 按 session_id 写入 SQLite，并提供 JSON 恢复 API~~
+- [x] ~~历史报告恢复页第一阶段：按 session_id 打开快照摘要页，并支持 JSON/PDF 再导出~~
+- [x] ~~历史报告列表第一阶段：提供 /reports 列表页，按最近快照打开历史报告~~
+- [x] ~~历史报告列表第二阶段：支持按科目和关键词筛选历史报告~~
+- [x] ~~历史报告列表导出摘要第一阶段：列表页展示导出次数和最近导出格式~~
+- [x] ~~历史报告 Agent 结果回填：快照缺少 agent_result_payload 时从 agent_jobs 自动补齐~~
+- [x] ~~历史报告复核交互第一阶段：快照页可直接修改重复题人工复核状态~~
 - [x] ~~报告 PDF 导出第一阶段：后端生成审查摘要 PDF + 页面下载按钮~~
+- [x] ~~报告导出历史展示第一阶段：历史报告页展示最近 PDF/JSON 导出记录~~
+- [x] ~~报告 JSON 后端导出第一阶段：JSON 导出走接口并写入导出历史~~
 
 ### 5.1 架构升级总览
 
@@ -781,6 +794,20 @@ GET /api/reports/{session_id}
 | `tests/test_review_store.py` | 新增持久化测试 | 验证 SQLite 创建、状态更新、API 成功和非法状态拒绝 |
 | `tests/test_review_store.py` | 新增模板上下文注入测试 | 验证重复明细行会拿到 `review_item_id`，避免出现表已创建但前端无 id 可写的假闭环 |
 
+#### 本轮补充代码改动：复核状态同步快照和导出 payload
+
+复查发现一个容易漏掉的闭环问题：人工复核状态虽然已写入 `review_items`，但报告生成时保存的 `export_payload` 快照仍可能停留在初始“待确认”。这样用户修改为“确认重复/排除误报”后，再打开历史报告或导出 PDF/JSON 时会看到旧状态。本轮已把复核状态同步到当前页面导出数据和 SQLite 快照中。
+
+修改文件：
+
+| 文件 | 改动内容 | 逻辑说明 |
+| --- | --- | --- |
+| `app/routes/web.py` | `_attach_review_persistence()` 同步标注导出行 | 除页面 `duplicate_rows` 外，也把 `review_session_id`、`review_item_id` 写入 `export_payload.duplicate_comparison.code_rows` |
+| `app/routes/web.py` | `PATCH /api/review-items/{item_id}` 更新快照 | 复核状态落库后，根据 `item_id/match_id` 更新 `report_snapshots.payload_json` 中对应重复题行 |
+| `app/services/review_store.py` | 新增 `update_report_snapshot_review_status()` | 封装快照 JSON 查找、修改和重新 upsert，缺少快照时安全跳过 |
+| `templates/report.html` | 保存成功后更新前端 `exportPayload` | 当前页面不刷新也能导出最新复核状态 |
+| `tests/test_review_store.py` | 新增快照同步测试 | 验证 PATCH 后历史快照中的 `review_status` 随之变更 |
+
 #### 本轮补充代码改动：报告快照持久化
 
 本轮继续补齐“历史报告可恢复”的数据底座：报告页生成完成后，会把当前 `export_payload` 按 `review_session.session_id` 写入 SQLite 的 `report_snapshots` 表。保存时机放在 Agent job 信息注入之后，因此异步模式下快照也会包含 `agent_job.job_id`，后续可以继续通过 job 接口回查 Agent 完整结果。
@@ -795,6 +822,139 @@ GET /api/reports/{session_id}
 | `app/routes/web.py` | 新增 `GET /api/reports/{session_id}` | 按 session_id 返回报告快照；不存在时返回 404 |
 | `tests/test_review_store.py` | 新增快照读写和 API 测试 | 验证 upsert 覆盖、JSON 回读和查询接口 |
 | `tests/test_agent_jobs.py` | 补异步 `/review` 快照断言 | 验证默认异步报告保存的快照包含 Agent job id |
+
+#### 本轮补充代码改动：历史报告恢复页
+
+本轮把报告快照从“只有 JSON 接口”推进到“可直接打开页面”的第一阶段：报告页生成后会显示“打开历史报告”入口，用户可以通过 `/reports/{session_id}` 重新打开该 session 的报告摘要页。页面读取 `report_snapshots.payload_json`，展示总览、上传试卷、双链路模块状态、重复题摘要、错字摘要和 Agent job/Agent 明细计数，并继续支持从快照导出 JSON 和 PDF。
+
+修改文件：
+
+| 文件 | 改动内容 | 逻辑说明 |
+| --- | --- | --- |
+| `app/routes/web.py` | 新增 `GET /reports/{session_id}` | 查询 `report_snapshots` 并渲染历史报告摘要页；快照不存在返回 404 |
+| `app/routes/web.py` | 新增 `_build_report_snapshot_context()` | 从 `export_payload` 中抽取报告总览、试卷、双链路、查重、错字和 Agent 数据，避免模板直接依赖原始深层结构 |
+| `templates/report_snapshot.html` | 新增历史报告快照页 | 可读展示历史报告摘要、重复题人工复核状态，并复用 `POST /api/reports/export-pdf` 重新导出 PDF |
+| `templates/report.html` | 报告动作区新增“打开历史报告” | 当前报告生成后直接给出可恢复入口，避免只有 session_id 但用户不知道入口 |
+| `tests/test_review_store.py` | 新增历史报告页测试 | 验证 `/reports/{session_id}` 能渲染快照内容，缺失 session 返回 404 |
+| `tests/test_agent_jobs.py` | 补报告页入口断言 | 验证默认异步 `/review` 页面包含“打开历史报告”入口 |
+
+#### 本轮补充代码改动：历史报告列表页
+
+本轮继续把历史报告能力从“知道 session_id 才能打开”推进到“可浏览最近报告”：新增 `/reports` 历史报告列表页，读取 `report_snapshots` 中最近保存的快照，展示教师、科目、更新时间、试卷数、题目数、重复/错字数量、待复核数量和 Agent job id，并提供“打开报告”链接进入 `/reports/{session_id}`。
+
+修改文件：
+
+| 文件 | 改动内容 | 逻辑说明 |
+| --- | --- | --- |
+| `app/services/review_store.py` | 新增 `list_report_snapshots()` | 从 `report_snapshots` 联表 `review_sessions` 读取最近快照，并从 `payload_json` 汇总试卷、题目、重复、错字、待复核和 Agent job 信息 |
+| `app/routes/web.py` | 新增 `GET /reports` | 渲染历史报告列表页；`limit` 参数限制最近记录数量，范围 1-200 |
+| `templates/reports.html` | 新增历史报告列表模板 | 表格展示最近报告快照，并链接到 `/reports/{session_id}` |
+| `templates/index.html` | 首页增加历史报告和历史题库入口 | 上传页可直接进入报告列表和题库管理页，避免入口隐藏 |
+| `tests/test_review_store.py` | 新增列表汇总和路由测试 | 验证摘要字段计算、页面渲染和详情链接 |
+
+#### 本轮补充代码改动：历史报告列表筛选
+
+本轮继续增强 `/reports` 的可用性：历史报告列表支持按科目筛选，并支持关键词搜索教师姓名、教师工号、科目、session_id 和 Agent job id。这样报告积累后，不需要知道 session_id 也能快速定位历史记录。
+
+修改文件：
+
+| 文件 | 改动内容 | 逻辑说明 |
+| --- | --- | --- |
+| `app/services/review_store.py` | `list_report_snapshots()` 增加 `subject` / `keyword` 参数 | 先读取最近快照并生成摘要，再按科目精确过滤、按关键词匹配教师/工号/session/Agent job |
+| `app/routes/web.py` | `/reports` 接收 `subject` 和 `q` 查询参数 | 将页面筛选条件传入 `ReviewStore.list_report_snapshots()`，并回填到模板 |
+| `templates/reports.html` | 新增筛选表单 | 支持选择科目、输入关键词、调整最近记录数，并提供清空入口 |
+| `tests/test_review_store.py` | 新增 Store 与页面筛选测试 | 验证筛选不是纯 UI 展示，而是真正影响列表结果 |
+
+审查修正：
+
+- 复查发现初版筛选是“先按 limit 取最近 N 条，再筛选”，当目标报告不在最近 N 条内时会被漏掉；已改为读取最近快照摘要后先按科目/关键词过滤，再按 `limit` 截断展示。
+- 已新增 `test_review_store_filters_report_snapshots_before_limit`，防止历史报告筛选再次退化成“只筛最近 N 条”。
+
+#### 本轮补充代码改动：历史报告列表导出摘要
+
+本轮继续把 `export_history` 的使用面接到历史报告列表：`/reports` 不再只展示报告快照本身，还会显示每个报告的导出次数，以及最近一次导出的格式和时间。这样老师或管理员在列表页就能看到某份报告是否已经导出过，避免必须进入详情页再看导出记录。
+
+修改文件：
+
+| 文件 | 改动内容 | 逻辑说明 |
+| --- | --- | --- |
+| `app/services/review_store.py` | `list_report_snapshots()` 汇总导出记录 | 读取 `export_history`，按 `session_id` 计算 `export_count`、`last_exported_at`、`last_export_format` 和最近文件名 |
+| `app/services/review_store.py` | 导出历史同秒排序修正 | 同一秒内连续导出时按 SQLite `rowid DESC` 判定最近记录，避免随机 `export_id` 导致最近格式显示错 |
+| `templates/reports.html` | 历史报告列表新增“导出”列 | 展示导出次数和最近导出格式；未导出时显示“尚未导出” |
+| `tests/test_review_store.py` | 增加列表摘要断言 | 验证导出摘要来自真实 `export_history`，并覆盖同一秒连续导出的最近记录判断 |
+
+当前逻辑：
+
+```text
+打开 /reports
+  -> ReviewStore.list_report_snapshots()
+  -> 读取 report_snapshots 生成报告摘要
+  -> 读取 export_history 生成导出摘要
+  -> 页面展示导出次数 + 最近导出格式/时间
+```
+
+#### 本轮补充代码改动：历史报告 Agent 结果回填
+
+复查异步 Agent 链路时发现一个闭环缺口：`/review` 默认先保存报告快照并返回页面，此时 `export_payload` 只包含 `agent_job.job_id`；如果用户没有停留到前端轮询完成，历史快照里可能没有 `agent_result_payload`。后台 Agent 其实已经把完整结果写入 `agent_jobs.result_payload_json`，但历史报告页不会自动读取，导致“已完成但历史报告看不到 Agent 明细”的假闭环。
+
+本轮已在历史报告读取入口补齐回填：打开 `/api/reports/{session_id}` 或 `/reports/{session_id}` 时，如果快照只有 job id 且 SQLite 中已有完成结果，会从 `agent_jobs` 读取完整 `result_payload`，写回 `report_snapshots.payload_json.agent_result_payload`，并同步更新快照里的 `agent_job.status/updated_at/has_result` 等摘要字段。
+
+修改文件：
+
+| 文件 | 改动内容 | 逻辑说明 |
+| --- | --- | --- |
+| `app/routes/web.py` | 新增 `_backfill_snapshot_agent_payload()` | 历史报告读取时根据 `payload.agent_job.job_id` 查询 `ReviewStore.get_agent_job()`，缺少 `agent_result_payload` 时自动补齐并重新保存快照 |
+| `app/routes/web.py` | `/api/reports/{session_id}` 接入回填 | JSON 恢复 API 返回前先补齐 Agent 完整明细，导出的快照 JSON 不再停留在 queued 占位状态 |
+| `app/routes/web.py` | `/reports/{session_id}` 接入回填 | 历史报告摘要页打开时也能显示已保存的 Agent 切题/重复/错字计数 |
+| `tests/test_review_store.py` | 新增 API 和页面回填测试 | 构造“快照仅有 queued job，agent_jobs 已 completed”的场景，验证 API/页面读取后快照被补齐 |
+
+当前逻辑：
+
+```text
+打开历史报告 API/页面
+  -> 读取 report_snapshots.payload_json
+  -> 如果 payload.agent_result_payload 已存在，直接使用
+  -> 如果缺失但 payload.agent_job.job_id 存在
+      -> 查询 agent_jobs.result_payload_json
+      -> 回填 payload.agent_result_payload
+      -> 同步 agent_job completed/has_result/updated_at 等状态
+      -> 重新 upsert report_snapshots，后续读取不再重复补齐
+```
+
+审查修正：
+
+- 这个改动不重算整页双链路对照表，只恢复历史页和 JSON/PDF 导出所需的 Agent 明细数据，避免把异步结果误当作同步主链路结果。
+- 如果 `agent_jobs` 没有结果或 job id 不存在，会保持原快照不变，不影响历史报告打开。
+
+#### 本轮补充代码改动：历史报告复核交互
+
+本轮继续补齐历史报告页的使用闭环：历史报告快照页不再只是展示重复题复核状态。只要快照行里带有 `review_item_id`，页面会渲染“待确认 / 确认重复 / 排除误报”下拉框，用户可直接在 `/reports/{session_id}` 修改复核状态。修改仍复用既有 `PATCH /api/review-items/{item_id}`，因此会同步更新 `review_items` 和 `report_snapshots.payload_json`；页面内的导出 payload 也会同步更新，避免从历史页导出的 JSON/PDF 使用旧状态。
+
+修改文件：
+
+| 文件 | 改动内容 | 逻辑说明 |
+| --- | --- | --- |
+| `templates/report_snapshot.html` | 重复题行新增复核下拉框 | 有 `review_item_id` 时渲染可编辑控件，无 id 时保留纯文本展示 |
+| `templates/report_snapshot.html` | 新增 PATCH 保存脚本 | 下拉变更后调用 `PATCH /api/review-items/{item_id}`，显示保存中/已保存/保存失败 |
+| `templates/report_snapshot.html` | 同步更新历史页导出 payload | 保存成功后更新 `payload.duplicate_comparison.code_rows[].review_status`，保证后续 JSON/PDF 导出一致 |
+| `tests/test_review_store.py` | 增加历史页控件与状态同步测试 | 验证历史报告页包含 `data-review-item-id`、复核选项和前端 payload 同步函数；PATCH 后重新打开历史页会选中最新状态 |
+
+当前逻辑：
+
+```text
+打开 /reports/{session_id}
+  -> 读取并回填 report_snapshots.payload_json
+  -> 重复题行若有 review_item_id
+      -> 渲染复核状态下拉框
+      -> 用户修改后 PATCH /api/review-items/{item_id}
+      -> 后端更新 review_items + report_snapshots
+      -> 前端同步当前 payload，导出 JSON/PDF 使用新状态
+```
+
+审查修正：
+
+- 历史报告页仍不是 `report.html` 的 1:1 视觉复刻，但人工复核这个高频动作已可在历史页直接完成。
+- 没有 `review_item_id` 的旧快照继续安全降级为纯文本状态，不会渲染不可用控件。
 
 数据库表：
 
@@ -840,24 +1000,28 @@ CREATE TABLE IF NOT EXISTS report_snapshots (
 当前实现范围：
 
 - 已支持当前报告页内修改复核状态并落库。
+- 已支持复核状态同步到当前导出 JSON/PDF payload 和历史报告快照。
 - 已把本次 `review_session_id` 和复核项数量写入导出 JSON。
 - 已支持按 `session_id` 保存并查询报告 `export_payload` 快照。
-- 当前还没有新增“按 session_id 重新打开历史报告”的 HTML 详情页；如果需要页面刷新后完整恢复可视化报告，下一步应增加 `/reports/{session_id}` 页面或前端恢复入口。
+- 已支持通过 `/reports/{session_id}` 重新打开历史报告摘要页。
+- 已支持通过 `/reports` 浏览最近报告快照并打开历史报告。
+- 已支持在 `/reports` 按科目和关键词筛选历史报告。
+- 已支持在 `/reports` 展示报告导出次数和最近导出格式/时间。
+- 已支持历史报告从 `agent_jobs` 自动回填异步 Agent 完整明细，避免用户未等前端轮询完成时快照缺少 Agent 结果。
+- 已支持在历史报告页直接修改重复题人工复核状态，并同步到 SQLite 快照与当前导出 payload。
+- 当前历史报告页是快照摘要恢复，不是 `report.html` 的 1:1 视觉复刻；逐题差异高亮仍以原报告页为主。
 
 验证结果：
 
 ```powershell
-.\.venv\Scripts\python.exe -m pytest tests\test_review_store.py -q
-# 4 passed
-
-.\.venv\Scripts\python.exe -m pytest tests -q
-# 38 passed
-
 .\.venv\Scripts\python.exe -m pytest tests\test_review_store.py tests\test_agent_jobs.py -q
-# 16 passed
+# 35 passed
+
+.\.venv\Scripts\python.exe -m compileall app tests -q
+# passed
 
 .\.venv\Scripts\python.exe -m pytest tests -q
-# 99 passed
+# 123 passed
 ```
 
 ### 5.6 Agent / Coze 链路异步化
@@ -951,6 +1115,34 @@ CREATE TABLE IF NOT EXISTS report_snapshots (
 | `app/main.py` | 新增 `AGENT_JOB_RETENTION_SECONDS` 配置 | 默认保留 7 天；设置为 `none/off/disabled` 可关闭自动清理 |
 | `tests/test_agent_jobs.py` | 新增清理测试 | 验证过期 completed 目录被删、running 目录保留、SQLite 记录仍可查询 |
 
+#### 本轮补充代码改动：Agent 后台任务列表
+
+复查发现 Agent job 已经具备 SQLite 持久化和单个 job 查询接口，但用户必须知道 `job_id` 才能打开 `/api/agent-jobs/{job_id}`。服务重启后，内存任务表清空，最近任务虽然仍在 SQLite，却没有可浏览入口。本轮补齐 `/agent-jobs` 管理页，展示最近 Agent 后台任务的状态、摘要、工作目录和 JSON 查询入口。
+
+修改文件：
+
+| 文件 | 改动内容 | 逻辑说明 |
+| --- | --- | --- |
+| `app/services/review_store.py` | 新增 `list_agent_jobs()` | 从 SQLite `agent_jobs` 读取最近任务，解码 `result_summary_json` 和 `result_payload_json`，限制 1-200 条 |
+| `app/routes/web.py` | 新增 `GET /agent-jobs` | 渲染最近 Agent 任务列表，支持 `limit` 控制数量 |
+| `templates/agent_jobs.html` | 新增 Agent 任务列表页 | 展示 job id、状态、题目/重复/错字摘要、工作目录，并提供 `/api/agent-jobs/{job_id}` JSON 链接 |
+| `templates/index.html` | 首页新增“查看 Agent 任务”入口 | 避免任务列表页只靠记 URL 访问 |
+| `tests/test_agent_jobs.py` | 新增 Store 和页面测试 | 验证任务列表来自 SQLite、结果摘要可展示、JSON 链接可见 |
+| `tests/test_review_store.py` | 更新首页入口测试 | 防止后续改模板时误删 Agent 任务入口 |
+
+当前逻辑：
+
+```text
+AgentJobStore 提交/运行/完成
+  -> upsert_agent_job_summary()
+  -> 写入 SQLite agent_jobs
+
+打开 /agent-jobs
+  -> ReviewStore.list_agent_jobs(limit)
+  -> 展示最近任务状态和完成摘要
+  -> 点击“查看 JSON”进入 /api/agent-jobs/{job_id}
+```
+
 当前逻辑：
 
 ```text
@@ -1015,6 +1207,7 @@ AGENT_JOB_RETENTION_SECONDS=none
 - 本轮继续修正前端展示层缺口：报告页已消费 `result_payload` 并展示 Agent 明细；尚未把这些明细重新合并进既有双链路对照表。
 - 本轮继续修正 job 目录堆积问题：已补过期清理和路径边界校验，清理不删除 SQLite 中的 job 记录。
 - 复查发现 Windows 上目录占用可能导致 `rmtree` 抛错并阻塞新任务；已改为删除失败时跳过，并补充外部路径拒绝测试。
+- 本轮补齐 Agent job 的页面层入口：不再只能通过已知 `job_id` 查询单个任务，SQLite 里保留的最近任务可直接在 `/agent-jobs` 浏览。
 
 验证结果：
 
@@ -1023,13 +1216,13 @@ AGENT_JOB_RETENTION_SECONDS=none
 # 9 passed
 
 .\.venv\Scripts\python.exe -m pytest tests\test_agent_jobs.py tests\test_review_store.py -q
-# 12 passed
+# 34 passed
 
 .\.venv\Scripts\python.exe -m pytest tests\test_agent_jobs.py -q
-# 7 passed
+# 9 passed
 
 .\.venv\Scripts\python.exe -m pytest tests -q
-# 96 passed
+# 122 passed
 ```
 
 ### 5.7 报告 PDF 导出
@@ -1082,14 +1275,71 @@ AGENT_JOB_RETENTION_SECONDS=none
 - 初次实现直接把中文文件名放入 `Content-Disposition filename` 会触发 latin-1 编码错误；已改为 ASCII fallback + `filename*=` UTF-8 标准写法。
 - 复查补充了“生成 PDF 能被解析器打开”的测试，避免只检查 `%PDF` 文件头造成假通过。
 
+#### 本轮补充代码改动：导出历史展示
+
+复查发现 `export_history` 已经建表，PDF 导出也会调用 `record_export()` 写入 SQLite，但历史报告页没有展示入口，后续检查只能手动查库，属于“数据落了但用户看不到”的半闭环。本轮把导出记录接到历史报告页：打开 `/reports/{session_id}` 时会读取最近导出记录，并展示格式、导出时间和文件名。
+
+修改文件：
+
+| 文件 | 改动内容 | 逻辑说明 |
+| --- | --- | --- |
+| `app/services/review_store.py` | 新增 `list_export_history()` | 按 `session_id` 查询最近导出记录，限制 1-50 条，避免跨报告串数据 |
+| `app/routes/web.py` | 历史报告上下文加入 `export_history` | `/reports/{session_id}` 渲染前读取最近 10 条导出记录 |
+| `templates/report_snapshot.html` | 新增“导出记录”区块 | 有记录时展示格式、导出时间、文件名；无记录时安全显示空状态 |
+| `tests/test_review_store.py` | 新增导出历史列表和页面展示测试 | 验证导出记录按 session 隔离，历史报告页能看到真实落库记录 |
+
+当前逻辑：
+
+```text
+POST /api/reports/export-pdf
+  -> 生成 PDF
+  -> record_export(session_id, "pdf", filename)
+  -> 写入 export_history
+
+打开 /reports/{session_id}
+  -> list_export_history(session_id, limit=10)
+  -> 页面展示最近导出记录
+```
+
+#### 本轮补充代码改动：JSON 导出落库
+
+继续复查导出闭环时发现一个更细的缺口：历史报告页已经能展示 PDF/JSON 导出记录，但实际 JSON 导出仍是前端本地 `Blob` 下载，不经过后端，因此不会写入 `export_history`。这会造成“页面支持 JSON 导出记录，但真实使用时没有 JSON 记录”的假闭环。本轮新增后端 JSON 导出接口，并把当前报告页、历史报告页的 JSON 按钮都切到该接口。
+
+修改文件：
+
+| 文件 | 改动内容 | 逻辑说明 |
+| --- | --- | --- |
+| `app/routes/web.py` | 新增 `POST /api/reports/export-json` | 接收当前 `export_payload`，返回 `application/json` 附件，并记录 `export_history(format=json)` |
+| `app/routes/web.py` | 抽出 `_record_report_export()` | PDF/JSON 共用导出记录逻辑；没有 `review_session.session_id` 时安全跳过 |
+| `templates/report.html` | JSON 导出改为调用后端接口 | 当前报告页导出 JSON 时会真实写入导出历史，不再只是本地 blob |
+| `templates/report_snapshot.html` | 历史报告 JSON 导出改为调用后端接口 | 历史快照页导出 JSON 同样写入 `export_history` |
+| `tests/test_review_store.py` | 新增 JSON 导出接口测试 | 验证接口返回 JSON 附件，并写入 `export_history` 的 `json` 记录 |
+| `tests/test_agent_jobs.py` / `tests/test_review_store.py` | 补模板断言 | 防止页面退回本地 blob 导出，确保包含 `/api/reports/export-json` |
+
+当前逻辑：
+
+```text
+点击“导出 JSON”
+  -> 前端 POST /api/reports/export-json
+  -> 后端返回 JSON 附件
+  -> 如存在 review_session.session_id，写入 export_history(format=json)
+  -> 历史报告页“导出记录”可看到 JSON 导出记录
+```
+
 验证结果：
 
 ```powershell
 .\.venv\Scripts\python.exe -m pytest tests\test_report_pdf.py tests\test_review_store.py -q
-# 7 passed
+# 28 passed
+
+.\.venv\Scripts\python.exe -m pytest tests\test_review_store.py tests\test_agent_jobs.py -q
+# 35 passed
+
+.\.venv\Scripts\python.exe -m compileall app tests -q
+# passed
 
 .\.venv\Scripts\python.exe -m pytest tests -q
-# 81 passed
+# 123 passed
 ```
 
 ### 5.8 历史题库管理页
@@ -1148,9 +1398,9 @@ SQLite: history_files / history_questions / index_jobs
 
 - 已支持删除单个来源 PDF；删除仅限历史题库目录内的 PDF，并会拒绝 `..` 路径穿越和非 PDF 文件。
 - 已支持按推断科目筛选和按文件名/试卷名关键词搜索；尚未做独立科目级目录和数据库化题库元数据。
-- 尚未做 FAISS 索引重建按钮；当前刷新的是 `HistoryBankService` 的本地 PDF 扫描缓存。
+- 已支持后台重建 `HistoryBankService` 的本地 PDF 扫描缓存和轻量历史题库索引；尚未做 FAISS 索引重建按钮。
 - 上传后会保存 PDF 并刷新，但扫描版 PDF 仍依赖前面 OCR Provider 的真实运行环境；本机尚未完成 Tesseract/Poppler 或 PaddleOCR 真实样本验收。
-- 当前本地 `data/datasets/history_bank/` 有较多 PDF；默认页面已避免全量解析，但点击“刷新题库缓存”或正式审查时仍会解析历史题库，后续需要做后台任务或持久化索引。
+- 当前本地 `data/datasets/history_bank/` 有较多 PDF；默认页面已避免全量解析，正式审查首次加载历史题库时仍可能触发解析，后续可继续把审查前预热和题库元数据持久化做得更完整。
 
 验证结果：
 
@@ -1159,7 +1409,7 @@ SQLite: history_files / history_questions / index_jobs
 # 13 passed
 
 .\.venv\Scripts\python.exe -m pytest tests -q
-# 99 passed
+# 111 passed
 ```
 
 #### 历史题库管理页第二阶段
@@ -1199,14 +1449,53 @@ SQLite: history_files / history_questions / index_jobs
 
 - 复查发现上传历史 PDF 后如果直接 `refresh=True`，会同步解析当前本地 144 份历史 PDF，真实使用时容易卡住；已改为上传后只 `invalidate_cache()` 并快速更新目录列表，用户需要全量解析时再点击“刷新题库缓存”。
 
+#### 历史题库后台重建第一阶段
+
+本轮继续补齐历史题库管理页的性能闭环：历史题库 PDF 较多时，同步点击“刷新题库缓存”会阻塞页面请求。现在新增后台重建入口，页面可以提交任务，让后台执行 `HistoryBankService.get_snapshot(force_refresh=True)`，完成后返回 PDF 数、成功加载数、题目数和失败摘要。由于 `HistoryBankService` 已在加载后调用轻量索引构建，所以该后台任务同时会重建本地轻量历史题库索引；这不是 FAISS，也不标记 FAISS 阶段完成。
+
+修改文件：
+
+| 文件 | 改动内容 | 逻辑说明 |
+| --- | --- | --- |
+| `app/services/history_bank_jobs.py` | 新增 `HistoryBankRefreshJobStore` | 使用单线程后台任务运行历史题库强制刷新，记录 queued/running/completed/failed、错误和摘要结果，并可写入 SQLite |
+| `app/services/review_store.py` | 新增 `history_bank_jobs` 表和读写方法 | 持久化题库后台任务状态、错误和完成摘要，避免内存任务丢失后无法查询 |
+| `app/main.py` | 初始化 `history_bank_job_store` | 应用启动时准备题库后台任务 store，并注入同一个 `ReviewStore` 作为持久化入口 |
+| `app/routes/web.py` | 新增 `POST /history-bank/rebuild` | 提交后台题库重建任务，立即返回 job_id，不阻塞页面请求 |
+| `app/routes/web.py` | 新增 `GET /api/history-bank/jobs/{job_id}` | 优先查内存任务；内存 miss 时回退读取 SQLite；不存在返回 404 |
+| `app/services/review_store.py` | 新增 `list_history_bank_jobs()` | 读取最近题库重建任务，供管理页刷新后继续查看任务记录 |
+| `templates/history_bank.html` | 新增“后台重建缓存/索引”按钮、轮询状态和最近任务列表 | 前端提交任务后轮询状态；刷新页面后仍可看到最近任务 ID、状态和完成摘要 |
+| `tests/test_history_bank_routes.py` | 增加后台重建路由与列表测试 | 验证任务会以 `force_refresh=True` 调用服务，状态接口可拿到完成/失败摘要和 SQLite fallback，管理页会渲染最近任务 |
+
+当前逻辑：
+
+```text
+点击“后台重建缓存/索引”
+  -> POST /history-bank/rebuild
+  -> HistoryBankRefreshJobStore.submit()
+  -> 写入 SQLite history_bank_jobs：queued
+  -> 后台执行 HistoryBankService.get_snapshot(force_refresh=True)
+  -> 加载 PDF、切题、挂载/重建轻量历史题库索引
+  -> 写入 SQLite history_bank_jobs：completed/failed + result_summary
+  -> GET /api/history-bank/jobs/{job_id} 查询内存任务
+  -> 内存不存在时回退读取 SQLite
+  -> /history-bank 刷新后展示最近 history_bank_jobs 摘要
+```
+
+审查修正：
+
+- 本轮只把现有本地题库缓存和轻量索引重建异步化，不引入 `faiss-cpu` 或 `sentence-transformers`，避免把真实语义索引假标完成。
+- 后续复查发现后台任务若只存在内存里，服务重启后状态查询会变成假闭环；已补 `history_bank_jobs` SQLite 表和接口 fallback。题库缓存本体和轻量索引文件仍由既有服务管理。
+- 再次补齐页面层闭环：管理页会展示最近 5 条题库重建任务，避免用户刷新页面后只剩 job 接口可查、页面本身看不到任务记录。
+- 复查补充了失败任务测试，确认异常会落库为 failed，错误信息可通过接口 fallback 和管理页最近任务列表看到。
+
 验证结果：
 
 ```powershell
 .\.venv\Scripts\python.exe -m pytest tests\test_history_bank.py tests\test_history_bank_routes.py -q
-# 10 passed
+# 18 passed
 
 .\.venv\Scripts\python.exe -m pytest tests -q
-# 78 passed
+# 116 passed
 ```
 
 ## 六、实施路线图
