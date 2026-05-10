@@ -1,7 +1,7 @@
 # EchoPaper 项目现状盘点
 
 日期：2026-05-10  
-范围：当前代码仓库 `c:\Users\mao\Desktop\echoplayer`
+范围：当前代码仓库 `d:\Afile\echoplayer`
 
 ## 一、项目概述
 
@@ -55,7 +55,7 @@ EchoPaper 是一个基于 FastAPI + Jinja2 + SQLite 的试卷智能审查系统 
 | 模块 | 文件 | 职责 |
 | --- | --- | --- |
 | 应用入口 | `app/main.py` | 初始化 FastAPI、运行目录、SQLite、历史题库服务、Agent Job Store |
-| Web 路由 | `app/routes/web.py` | 首页、上传审查、历史题库管理、复核状态、报告快照、PDF 导出、Agent job 查询 |
+| Web 路由 | `app/routes/web.py` | 首页、上传审查、历史题库管理、题库后台重建、复核状态、历史报告列表、报告快照、PDF/JSON 导出、Agent job 查询 |
 | Coze 路由 | `app/routes/coze.py` | Coze 工作流执行、切题接口和健康检查 |
 | Nuwa 路由 | `app/routes/nuwa.py` | 兼容旧 Nuwa 工作流接口 |
 | PDF 解析 | `app/services/pdf_parser.py` | pdfplumber 文本提取、图片占位符、OCR 路由和解析诊断 |
@@ -63,6 +63,7 @@ EchoPaper 是一个基于 FastAPI + Jinja2 + SQLite 的试卷智能审查系统 
 | 切题 | `app/services/question_splitter.py` | 规则切题、前言剥离、题号识别、碎片合并、公式符号清洗、Coze 切题解析 |
 | 查重 | `app/services/comparator.py` | 卷内查重、A/B 交叉查重、历史题库比对、Coze/Nuwa 智能比对解析 |
 | 历史题库 | `app/services/history_bank.py` | 扫描历史 PDF、解析题目、科目推断、缓存和摘要 |
+| 题库后台任务 | `app/services/history_bank_jobs.py` | 历史题库缓存/轻量索引后台重建、任务状态维护和 SQLite 持久化 |
 | 历史索引 | `app/services/history_vector_index.py` | 本地轻量字符 n-gram 索引构建、持久化和复用 |
 | 错别字检查 | `app/services/spellcheck/*` | 本地规则检查、Coze 检查、Nuwa 检查和跳过占位 Provider |
 | 双链路编排 | `app/services/dual_run.py` | 代码版与 Agent 版 Pipeline 编排、超时和错误元数据 |
@@ -131,6 +132,9 @@ EchoPaper 是一个基于 FastAPI + Jinja2 + SQLite 的试卷智能审查系统 
 - 已实现历史题库 PDF 删除，并防止路径穿越。
 - 已实现历史题库摘要、科目推断、关键词/科目筛选。
 - 已实现历史题库缓存失效和刷新。
+- 已实现历史题库后台重建入口 `/history-bank/rebuild`，避免大题库同步刷新阻塞页面。
+- 已实现题库后台重建任务状态查询 `/api/history-bank/jobs/{job_id}`。
+- 已实现最近题库重建任务写入 SQLite，并在题库管理页展示最近任务摘要。
 
 ### 4.6 错别字和标点检查
 
@@ -152,16 +156,19 @@ EchoPaper 是一个基于 FastAPI + Jinja2 + SQLite 的试卷智能审查系统 
 - 已实现服务重启或内存任务丢失后的 SQLite fallback 查询。
 - 已实现报告页轮询 Agent job，并在完成后回填 Agent 切题、查重和错字明细。
 - 已实现 Agent job 工作目录过期清理。
+- 已实现 Agent 任务列表页 `/agent-jobs`，可查看最近已落库任务及对应 JSON 接口。
 
 ### 4.8 报告和导出
 
 - 已实现审查报告页，包含 Dashboard、历史题库状态、切题质量、错字清单、重复明细、人工复核区、双链路对照和 Agent 状态。
 - 已实现报告快照持久化。
+- 已实现历史报告列表页 `/reports`，支持按科目和关键词筛选。
 - 已实现报告快照 API 和快照页面 `/reports/{session_id}`。
-- 已实现 JSON 导出 payload。
+- 已实现 JSON 导出后端接口 `/api/reports/export-json`，当前报告页和历史快照页均通过后端导出。
 - 已实现摘要版 PDF 导出接口 `/api/reports/export-pdf`。
-- 已实现 PDF 导出历史记录写入 SQLite。
+- 已实现 PDF/JSON 导出历史记录写入 SQLite，并在历史快照页展示最近导出记录。
 - 已实现中文文件名下载头兼容处理。
+- 已实现历史报告页面在 Agent 任务完成后回填 Agent 结果，避免快照长期停留在提交时状态。
 
 ### 4.9 人工复核持久化
 
@@ -170,6 +177,7 @@ EchoPaper 是一个基于 FastAPI + Jinja2 + SQLite 的试卷智能审查系统 
 - 已实现复核状态选项：待确认、确认重复、排除误报。
 - 已实现复核状态更新接口 `PATCH /api/review-items/{item_id}`。
 - 已实现报告明细行绑定复核项 ID。
+- 已实现复核状态同步回写报告快照和导出 payload，历史报告与导出结果可反映最新复核状态。
 
 ### 4.10 Coze 知识库导出
 
@@ -182,7 +190,7 @@ EchoPaper 是一个基于 FastAPI + Jinja2 + SQLite 的试卷智能审查系统 
 ### 4.11 自动化测试
 
 - 当前测试覆盖 PDF 解析、OCR 配置、切题、查重、历史题库、历史索引、Coze 导出、双链路、Agent job、报告快照、复核持久化和 PDF 导出等核心模块。
-- `docs/EchoPaper_升级方案.md` 中最近记录的全量测试结果为 `101 passed`。
+- `docs/EchoPaper_升级方案.md` 中最近记录的全量测试结果为 `123 passed`。
 
 ## 五、没有实现或尚未完整实现的功能
 
@@ -198,7 +206,8 @@ EchoPaper 是一个基于 FastAPI + Jinja2 + SQLite 的试卷智能审查系统 
 | PDF 水印、分页样式、复杂差异高亮 | 未实现 | 需要后续引入 WeasyPrint、reportlab 或其他渲染方案 |
 | Agent 结果重算整页双链路对照 | 未完整实现 | Agent 完成后已追加展示明细，但尚未把结果重新合并进原有全部对照表和 Dashboard |
 | Agent 完成实时推送 | 未实现 | 当前使用前端轮询，不是 WebSocket/SSE |
-| Agent job 管理页面 | 未实现 | 已有状态接口和自动清理，但没有独立的后台任务列表/清理页面 |
+| Agent job 细粒度运维能力 | 未完整实现 | 已有 `/agent-jobs` 列表页，但尚未提供任务重试、手动清理、按状态批量筛选等运维能力 |
+| 历史题库元数据持久化 | 未完整实现 | 当前以目录扫描、缓存摘要和 SQLite 任务记录为主，尚未建立独立的题库文件/题目元数据表 |
 
 以下为以后迭代升级的内容，本次无需优化
 | 历史题库版本管理 | 未实现 | 目前支持上传、删除、刷新，但没有版本、标签、来源、批次管理 |
@@ -218,7 +227,7 @@ EchoPaper 是一个基于 FastAPI + Jinja2 + SQLite 的试卷智能审查系统 
 | Coze Agent 链路 | 依赖外部工作流、Token、网络和工作流输出格式 | 超时、接口错误或返回结构变化会影响 Agent 对照 |
 | Agent 明细回填 | 当前是追加展示，不是整页报告重算 | 用户看到的代码版主报告和 Agent 后回填区之间可能仍需人工理解差异 |
 | PDF 摘要导出 | 能生成合法摘要 PDF，但不是完整报告复刻 | 适合归档摘要，不适合替代完整 Web 报告 |
-| 历史题库加载 | PDF 数量大时仍可能带来解析耗时；轻量索引不是专业检索引擎 | 大规模题库性能和召回质量仍需升级 |
+| 历史题库加载 | 已通过后台重建降低页面阻塞，但 PDF 数量大时全量解析和轻量索引重建仍可能耗时 | 大规模题库性能和召回质量仍需升级 |
 | SQLite 单库 | 适合 MVP 和本地闭环 | 并发、多用户、备份恢复和审计能力有限 |
 
 ## 七、当前运行方式
@@ -238,11 +247,11 @@ uvicorn app.main:app --host 0.0.0.0 --port 5000
 Coze 相关环境变量：
 
 ```env
-COZE_API_URL=https://api.coze.cn/v3/workflows/run
+COZE_API_URL=https://api.coze.cn/v1/workflow/run
 COZE_WORKFLOW_ID=7637135521890959375
 COZE_SPLIT_WORKFLOW_ID=7637166446480506899
 COZE_BOT_TOKEN=your_bot_token_here
-COZE_TIMEOUT=60
+COZE_TIMEOUT=300
 ```
 
 Agent 和 OCR 相关环境变量：
@@ -259,5 +268,4 @@ OCR_ENGINE=none
 # OCR_DPI=200
 # OCR_LANG=chi_sim+eng
 ```
-
 
