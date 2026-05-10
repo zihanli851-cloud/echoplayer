@@ -63,11 +63,11 @@ Coze Workflow API 用于 Agent 版智能审查能力。
 
 ```bash
 # Coze API 配置
-COZE_API_URL=https://api.coze.cn/v3/workflows/run
+COZE_API_URL=https://api.coze.cn/v1/workflow/run
 COZE_WORKFLOW_ID=7637135521890959375       # 综合审查工作流
-COZE_SPLIT_WORKFLOW_ID=7637166446480506899 # 切题工作流
+COZE_SPLIT_WORKFLOW_ID=7637166440506899 # 切题工作流
 COZE_BOT_TOKEN=your_bot_token_here         # 在 Coze 个人中心 -> API 管理 创建
-COZE_TIMEOUT=60
+COZE_TIMEOUT=300
 ```
 
 ### Coze 工作流 ID
@@ -80,11 +80,28 @@ COZE_TIMEOUT=60
 - **工作流执行**: `POST /v1/workflow/run`
 - **认证方式**: `Authorization: Bearer {COZE_BOT_TOKEN}`
 
+### 切题工作流入参格式
+```json
+{
+  "paper_text_data": {
+    "content": "试卷原始文本",
+    "paper_id": "A",
+    "subject": "chinese",
+    "filename": "exam.pdf"
+  }
+}
+```
+输出：`split_result` 对象（包含 `paper_id`, `questions` 数组, `subject`）
+
 ### Coze Provider
 | Provider | 说明 |
 |----------|------|
 | `CozeSpellcheckProvider` | Coze 智能体错字检查 |
 | `CozeService` | Coze Workflow API 封装 |
+
+### 代码修改记录
+- `coze_service.py`: `execute_split()` 方法支持 `questions` 参数（暂未启用，因为工作流内部解析有问题）
+- `question_splitter.py`: `AgentQuestionSplitter.split()` 先用本地规则切题再调用 Coze
 
 ## 运行与预览
 

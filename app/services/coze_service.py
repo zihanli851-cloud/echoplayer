@@ -192,17 +192,35 @@ class CozeService:
         paper_id: str = "unknown",
         subject: str = "",
         filename: str = "",
+        questions: list[dict] | None = None,
     ) -> dict[str, Any]:
-        """执行切题工作流。"""
-        parameters = {
-            "paper_text_data": {
-                "content": paper_content,
-                "text_content": paper_content,
-                "paper_id": paper_id,
-                "subject": subject,
-                "filename": filename,
-            },
-        }
+        """
+        执行切题工作流。
+        
+        入参格式：
+        - paper_text_data 格式（默认）：传入原始试卷文本，让工作流智能切题
+        - question_data 格式（可选）：传入已切分的题目列表
+        """
+        # 优先使用 paper_text_data 格式（已验证可用）
+        if questions and False:  # 暂时禁用 question_data 格式（工作流内部解析有问题）
+            parameters = {
+                "question_data": {
+                    "paper_id": paper_id,
+                    "questions": questions,
+                    "subject": subject,
+                },
+            }
+        else:
+            # 使用 paper_text_data 格式（原始文本）
+            parameters = {
+                "paper_text_data": {
+                    "content": paper_content,
+                    "text_content": paper_content,
+                    "paper_id": paper_id,
+                    "subject": subject,
+                    "filename": filename,
+                },
+            }
         return self.execute_workflow(parameters, workflow_id=self.split_workflow_id)
 
     def execute_spellcheck(
