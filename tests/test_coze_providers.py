@@ -20,6 +20,7 @@ class FakeCozeSplitService:
         paper_id: str = "unknown",
         subject: str = "",
         filename: str = "",
+        questions: list | None = None,
     ) -> dict:
         self.paper_content = paper_content
         self.paper_id = paper_id
@@ -60,6 +61,7 @@ class ErrorCozeSplitService:
         paper_id: str = "unknown",
         subject: str = "",
         filename: str = "",
+        questions: list | None = None,
     ) -> dict:
         raise CozeServiceError("Coze 内部错误")
 

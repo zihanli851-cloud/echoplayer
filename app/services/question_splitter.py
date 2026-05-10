@@ -242,11 +242,25 @@ class AgentQuestionSplitter(QuestionSplitProvider):
 
         try:
             if self._service_type == "coze":
+                # 先用本地规则切题，然后传给 Coze 工作流使用 question_data 格式
+                local_questions = self.fallback_provider.split(stripped_text, paper_id, paper=paper)
+                
+                # 转换为 question_data 格式
+                questions_for_coze = []
+                for q in local_questions:
+                    questions_for_coze.append({
+                        "content": q.content,
+                        "order": q.order,
+                        "question_id": q.question_id,
+                        "question_no": q.question_no,
+                    })
+                
                 response = self._service.execute_split(
                     stripped_text,
                     paper_id=paper_id,
                     subject=paper.subject if paper else "",
                     filename=paper.filename if paper else "",
+                    questions=questions_for_coze if questions_for_coze else None,
                 )
             else:
                 response = self._service.execute_split_workflow(paper_payload)
