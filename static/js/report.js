@@ -8,11 +8,6 @@
       .replace(/'/g, "&#039;");
   }
 
-  function truncateText(text, maxLength) {
-    if (!text || text.length <= maxLength) return text || "";
-    return `${text.slice(0, maxLength)}...`;
-  }
-
   function normalizeText(value) {
     return String(value || "").trim().toLowerCase();
   }
@@ -97,8 +92,8 @@
         const textContent = normalizeText(section.textContent);
         const pendingRows = section.querySelectorAll('select[data-review-item-id] option:checked[value="待确认"]').length;
 
-        if (filterRiskOnly && filterRiskOnly.checked) {
-          if (!["high", "suspect", "warn"].includes(riskLevel)) return false;
+        if (filterRiskOnly && filterRiskOnly.checked && !["high", "suspect", "warn"].includes(riskLevel)) {
+          return false;
         }
         if (filterPendingOnly && filterPendingOnly.checked && pendingRows === 0) {
           return false;
@@ -142,131 +137,6 @@
         filterKeyword.addEventListener("input", applyReportFilters);
       }
       applyReportFilters();
-
-      const agentJobPanel = document.getElementById("agent-job-panel");
-      if (!agentJobPanel) return;
-      const jobId = agentJobPanel.dataset.agentJobId;
-      const statusNode = document.getElementById("agent-job-status");
-      const messageNode = document.getElementById("agent-job-message");
-      let remainingPolls = 60;
-
-      function renderAgentMetric(label, value, hint) {
-        return `
-          <article class="metric">
-            <strong>${escapeHtml(label)}</strong>
-            <span>${escapeHtml(String(value))}</span>
-            <small>${escapeHtml(hint)}</small>
-          </article>
-        `;
-      }
-
-      function renderAgentModuleNotes(moduleMetadata) {
-        const entries = Object.entries(moduleMetadata || {});
-        if (!entries.length) return "";
-        const rows = entries.map(function ([name, metadata]) {
-          const label = metadata.provider_label || metadata.provider_name || name;
-          const note = metadata.provider_note || "";
-          const state = metadata.is_placeholder ? "未返回" : "已返回";
-          return `<div class="agent-detail-item"><strong>${escapeHtml(name)} / ${escapeHtml(label)}</strong><p>${escapeHtml(state)}${note ? "：" + escapeHtml(note) : ""}</p></div>`;
-        }).join("");
-        return `<section><h3>Agent 模块状态</h3><div class="agent-detail-list">${rows}</div></section>`;
-      }
-
-      function renderAgentQuestionList(questions) {
-        if (!questions.length) return `<section><h3>Agent 切题明细</h3><div class="empty"><p>Agent 未返回题目明细。</p></div></section>`;
-        const rows = questions.slice(0, 12).map(function (question) {
-          return `
-            <div class="agent-detail-item">
-              <strong>${escapeHtml(question.paper_id || "")} 卷第 ${escapeHtml(question.question_no || "")} 题</strong>
-              <p>${escapeHtml(truncateText(question.content || question.raw_block || "", 180))}</p>
-            </div>
-          `;
-        }).join("");
-        const suffix = questions.length > 12 ? `<p>仅展示前 12 道，完整数据已写入当前导出 JSON。</p>` : "";
-        return `<section><h3>Agent 切题明细</h3><div class="agent-detail-list">${rows}</div>${suffix}</section>`;
-      }
-
-      function renderAgentDuplicateList(matches) {
-        if (!matches.length) return `<section><h3>Agent 重复明细</h3><div class="empty"><p>Agent 未返回重复题目对。</p></div></section>`;
-        const rows = matches.slice(0, 10).map(function (match) {
-          return `
-            <div class="agent-detail-item">
-              <strong>${escapeHtml(match.comparison_type || "")} / ${escapeHtml(String(match.similarity_score || 0))}% / ${escapeHtml(match.level || "")}</strong>
-              <p>${escapeHtml(match.source_paper_id || "")} 第 ${escapeHtml(match.source_question_no || "")} 题 ↔ ${escapeHtml(match.target_paper_id || "")} 第 ${escapeHtml(match.target_question_no || "")} 题</p>
-            </div>
-          `;
-        }).join("");
-        const suffix = matches.length > 10 ? `<p>仅展示前 10 条，完整数据已写入当前导出 JSON。</p>` : "";
-        return `<section><h3>Agent 重复明细</h3><div class="agent-detail-list">${rows}</div>${suffix}</section>`;
-      }
-
-      function renderAgentSpellcheckList(issues) {
-        if (!issues.length) return `<section><h3>Agent 错字明细</h3><div class="empty"><p>Agent 未返回错字问题。</p></div></section>`;
-        const rows = issues.slice(0, 10).map(function (issue) {
-          return `
-            <div class="agent-detail-item">
-              <strong>${escapeHtml(issue.paper_id || "")} 卷第 ${escapeHtml(issue.question_no || "")} 题 / ${escapeHtml(issue.issue_type || "")}</strong>
-              <p>${escapeHtml(issue.issue_text || "")} → ${escapeHtml(issue.suggestion || "")}</p>
-            </div>
-          `;
-        }).join("");
-        const suffix = issues.length > 10 ? `<p>仅展示前 10 条，完整数据已写入当前导出 JSON。</p>` : "";
-        return `<section><h3>Agent 错字明细</h3><div class="agent-detail-list">${rows}</div>${suffix}</section>`;
-      }
-
-      function renderAgentResultPayload(resultPayload) {
-        const detailNode = document.getElementById("agent-job-detail");
-        if (!detailNode || !resultPayload) return;
-        const questions = Array.isArray(resultPayload.questions) ? resultPayload.questions : [];
-        const matches = Array.isArray(resultPayload.similarity_matches) ? resultPayload.similarity_matches : [];
-        const issues = Array.isArray(resultPayload.spellcheck_issues) ? resultPayload.spellcheck_issues : [];
-        const moduleMetadata = resultPayload.module_metadata || {};
-        detailNode.classList.add("is-visible");
-        detailNode.innerHTML = `
-          <div class="agent-detail-grid">
-            ${renderAgentMetric("Agent 切题", questions.length, "后台返回的题目明细")}
-            ${renderAgentMetric("Agent 重复", matches.length, "后台返回的重复题目对")}
-            ${renderAgentMetric("Agent 错字", issues.length, "后台返回的错字问题")}
-          </div>
-          ${renderAgentModuleNotes(moduleMetadata)}
-          ${renderAgentQuestionList(questions)}
-          ${renderAgentDuplicateList(matches)}
-          ${renderAgentSpellcheckList(issues)}
-        `;
-      }
-
-      window.renderAgentResultPayload = renderAgentResultPayload;
-
-      async function pollAgentJob() {
-        if (!jobId || remainingPolls <= 0) return;
-        remainingPolls -= 1;
-        try {
-          const response = await fetch(`/api/agent-jobs/${jobId}`);
-          if (!response.ok) return;
-          const payload = await response.json();
-          if (statusNode) statusNode.textContent = payload.status;
-          if (payload.status === "completed") {
-            if (messageNode) {
-              const result = payload.result || {};
-              messageNode.textContent = `Agent 对照已完成：切题 ${result.question_count || 0} 道，重复 ${result.duplicate_count || 0} 条，错字 ${result.spellcheck_count || 0} 条。`;
-            }
-            if (payload.result_payload) {
-              exportPayload.agent_result_payload = payload.result_payload;
-              renderAgentResultPayload(payload.result_payload);
-            }
-            return;
-          }
-          if (payload.status === "failed") {
-            if (messageNode) messageNode.textContent = payload.error || "Agent 对照运行失败。";
-            return;
-          }
-          window.setTimeout(pollAgentJob, 2000);
-        } catch (error) {
-          window.setTimeout(pollAgentJob, 4000);
-        }
-      }
-
-      window.setTimeout(pollAgentJob, 1200);
     },
   };
 })();

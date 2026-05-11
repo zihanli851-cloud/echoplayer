@@ -2,7 +2,6 @@
   <div class="section-head">
     <div>
       <h2>切题复核提示</h2>
-      <p>列出规则切题置信度偏低的题目，方便人工优先检查是否漏切或误切。</p>
     </div>
   </div>
 
@@ -32,7 +31,7 @@
     </table>
   </div>
   {% else %}
-  {% with message="当前代码版切题结果未发现需要优先复核的低置信度提示。" %}
+  {% with message="暂无切题提示。" %}
   {% include 'partials/shared/empty_state.html' %}
   {% endwith %}
   {% endif %}

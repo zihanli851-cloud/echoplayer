@@ -6,6 +6,7 @@ from app.services.comparator import (
     compare_within_paper,
     lightweight_vector_similarity,
     normalize_for_compare,
+    strip_compare_boilerplate,
 )
 
 
@@ -63,6 +64,39 @@ def test_compare_cross_papers_detects_suspected_duplicate() -> None:
     assert matches[0].level in {"高度重复", "疑似重复", "疑似原题"}
 
 
+def test_compare_cross_papers_ignores_exam_cover_boilerplate() -> None:
+    paper_a_questions = [
+        build_question(
+            "A",
+            1,
+            "1",
+            "本套试题共 四 道大题，共 4 页，完卷时间 120 分钟。\n考生不得携带任何通讯工具进入考场。",
+        ),
+        build_question("A", 2, "2", "下列程序段的时间复杂度是( ) A. O(logn) B. O(n)"),
+    ]
+    paper_b_questions = [
+        build_question(
+            "B",
+            1,
+            "1",
+            "本套试题共 四 道大题，共 3 页，完卷时间 120 分钟。\n考生不得携带任何通讯工具进入考场。",
+        ),
+        build_question("B", 2, "2", "二叉树中序遍历的访问顺序是( ) A. 根左右 B. 左根右"),
+    ]
+
+    matches = compare_cross_papers(paper_a_questions, paper_b_questions)
+
+    assert matches == []
+    assert strip_compare_boilerplate(paper_a_questions[0].content) == ""
+
+
+def test_compare_boilerplate_filter_keeps_real_time_complexity_question() -> None:
+    text = "下列程序段的时间复杂度是( ) A. O(logn) B. O(n)"
+
+    assert strip_compare_boilerplate(text) == text
+    assert normalize_for_compare(text)
+
+
 def test_compare_against_history_bank_limits_top_matches_per_question() -> None:
     source_questions = [
         build_question("A", 1, "1", "请说明操作系统中进程与线程的主要区别。", course="操作系统"),
@@ -85,6 +119,41 @@ def test_compare_against_history_bank_limits_top_matches_per_question() -> None:
 
     assert len(matches) == 1
     assert matches[0].target_paper_label == "历史卷一"
+
+
+def test_compare_against_history_bank_keeps_concrete_course_filter_strict() -> None:
+    source_questions = [
+        build_question("A", 1, "1", "请说明栈和队列的区别。", course="语文"),
+    ]
+    history_questions = [
+        build_question("H1", 1, "1", "请说明栈和队列的区别。", course="数据结构"),
+    ]
+
+    matches = compare_against_history_bank(
+        source_questions,
+        history_questions,
+        course_filter="语文",
+    )
+
+    assert matches == []
+
+
+def test_compare_against_history_bank_uses_all_history_when_course_filter_is_empty() -> None:
+    source_questions = [
+        build_question("A", 1, "1", "请说明栈和队列的区别。", course=""),
+    ]
+    history_questions = [
+        build_question("H1", 1, "1", "请说明栈和队列的区别。", course="数据结构"),
+    ]
+
+    matches = compare_against_history_bank(
+        source_questions,
+        history_questions,
+        course_filter="",
+    )
+
+    assert len(matches) == 1
+    assert matches[0].comparison_type == "history_bank"
 
 
 def test_compare_against_history_bank_recognizes_same_source_question_by_template() -> None:

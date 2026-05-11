@@ -57,11 +57,12 @@ def test_rebuild_history_bank_creates_txt_backup_and_manifest(tmp_path) -> None:
     assert result.failed == 0
     assert result.backup_dir is not None
 
-    rebuilt_text = existing_txt_path.read_text(encoding="utf-8")
+    rebuilt_path = txt_dir / "2025+A+离散数学.txt"
+    rebuilt_text = rebuilt_path.read_text(encoding="utf-8")
     assert "###QUESTION###" in rebuilt_text
     assert "subject: 离散数学" in rebuilt_text
 
-    backup_path = Path(result.backup_dir) / "2025+A+离散数学.coze.txt"
+    backup_path = Path(result.backup_dir) / "2025+A+离散数学.txt"
     assert backup_path.exists()
     assert backup_path.read_text(encoding="utf-8") == "old content"
 

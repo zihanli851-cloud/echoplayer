@@ -22,7 +22,6 @@
         <a href="#{{ item.id }}" class="admin-nav-card">
           <strong>{{ item.label }}</strong>
           <span>{{ item.count }}</span>
-          <small>点击跳转到对应摘要区</small>
         </a>
         {% endfor %}
       </div>
@@ -32,29 +31,12 @@
   <section class="panel section" id="snapshot-overview">
     <h2>报告总览</h2>
     <div class="admin-summary-grid" style="margin-top: 16px;">
-      <article class="admin-soft-card"><strong>A 卷题目数</strong><span class="metric-value">{{ dashboard.paper_a_question_count or 0 }}</span><p>快照保存时记录的 A 卷题目数。</p></article>
-      <article class="admin-soft-card"><strong>B 卷题目数</strong><span class="metric-value">{{ dashboard.paper_b_question_count or 0 }}</span><p>快照保存时记录的 B 卷题目数。</p></article>
-      <article class="admin-soft-card"><strong>疑似重复</strong><span class="metric-value">{{ dashboard.suspected_duplicate_total or 0 }}</span><p>需要继续人工核查的重复题摘要。</p></article>
-      <article class="admin-soft-card"><strong>错字问题</strong><span class="metric-value">{{ dashboard.spellcheck_issue_total or 0 }}</span><p>快照中保留的错字与标点问题数量。</p></article>
-      <article class="admin-soft-card"><strong>历史题库命中</strong><span class="metric-value">{{ dashboard.history_match_total or 0 }}</span><p>与历史题库的比对命中数。</p></article>
-      <article class="admin-soft-card"><strong>Agent 重复新增</strong><span class="metric-value">{{ duplicate_summary.agent_only or 0 }}</span><p>只在 Agent 结果中出现的重复题。</p></article>
-      <article class="admin-soft-card"><strong>Agent 错字新增</strong><span class="metric-value">{{ spellcheck_summary.agent_only or 0 }}</span><p>只在 Agent 结果中出现的错字问题。</p></article>
-      <article class="admin-soft-card"><strong>切题复核提示</strong><span class="metric-value">{{ question_quality | length }}</span><p>低置信度切题提醒。</p></article>
-    </div>
-
-    <div class="admin-card-grid section">
-      <article class="admin-soft-card">
-        <strong>快照说明</strong>
-        <p>当前页面展示的是已持久化的历史恢复报告，可继续导出、复核和回看摘要，但不代表实时重新运行后的最新结果。</p>
-      </article>
-      <article class="admin-soft-card">
-        <strong>恢复时间线</strong>
-        <div class="status-stack" style="margin-top: 10px;">
-          <div class="status-row"><span>首次保存</span><small>{{ created_at }}</small></div>
-          <div class="status-row"><span>最近更新</span><small>{{ updated_at }}</small></div>
-          <div class="status-row"><span>Session ID</span><small>{{ session_id }}</small></div>
-        </div>
-      </article>
+      <article class="admin-soft-card"><strong>A 卷题数</strong><span class="metric-value">{{ dashboard.paper_a_question_count or 0 }}</span></article>
+      <article class="admin-soft-card"><strong>B 卷题数</strong><span class="metric-value">{{ dashboard.paper_b_question_count or 0 }}</span></article>
+      <article class="admin-soft-card"><strong>疑似重复</strong><span class="metric-value">{{ dashboard.suspected_duplicate_total or 0 }}</span></article>
+      <article class="admin-soft-card"><strong>错字问题</strong><span class="metric-value">{{ dashboard.spellcheck_issue_total or 0 }}</span></article>
+      <article class="admin-soft-card"><strong>历史题库命中</strong><span class="metric-value">{{ dashboard.history_match_total or 0 }}</span></article>
+      <article class="admin-soft-card"><strong>切题复核提示</strong><span class="metric-value">{{ question_quality | length }}</span></article>
     </div>
   </section>
 
@@ -82,9 +64,9 @@
             <td>{{ paper.image_count or 0 }}</td>
             <td>
               {% if paper.ocr_attempted and paper.ocr_succeeded %}
-              已触发 OCR 并成功
+              已启用 OCR 并成功
               {% elif paper.ocr_attempted %}
-              已触发 OCR 但未成功
+              已启用 OCR 但未成功
               {% elif (paper.image_count or 0) > 0 %}
               有图片占位，未做 OCR
               {% else %}
@@ -134,37 +116,7 @@
       </table>
     </div>
     {% else %}
-    {% with message="当前快照没有记录到明显图片题、扫描页或 OCR 风险。" %}
-    {% include "partials/shared/empty_state.html" %}
-    {% endwith %}
-    {% endif %}
-  </section>
-
-  <section class="panel section" id="snapshot-dual-run">
-    <h2>双链路模块状态</h2>
-    {% if dual_run_sections %}
-    <div class="table-shell" style="margin-top: 14px;">
-      <table>
-        <thead>
-          <tr>
-            <th>模块</th>
-            <th>状态</th>
-            <th>说明</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for section in dual_run_sections %}
-          <tr>
-            <td>{{ section.module_name }}</td>
-            <td><span class="badge {% if section.status != '一致' %}warn{% else %}type{% endif %}">{{ section.status }}</span></td>
-            <td>{{ section.diff_summary }}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-    {% else %}
-    {% with message="快照中没有双链路模块状态。" %}
+    {% with message="当前快照没有记录明显图片题、扫描页或 OCR 风险。" %}
     {% include "partials/shared/empty_state.html" %}
     {% endwith %}
     {% endif %}
@@ -180,7 +132,6 @@
             <th>对比项</th>
             <th>相似度</th>
             <th>等级</th>
-            <th>状态</th>
             <th>人工复核</th>
           </tr>
         </thead>
@@ -189,8 +140,7 @@
           <tr>
             <td>{{ row.comparison_label }}</td>
             <td>{{ row.score }}%</td>
-            <td><span class="badge {% if row.level == '高度重复' %}danger{% else %}warn{% endif %}">{{ row.level }}</span></td>
-            <td>{{ row.compare_status }}</td>
+            <td><span class="badge {% if row.level == '高强度重复' %}danger{% else %}warn{% endif %}">{{ row.level }}</span></td>
             <td>
               {% if row.review_item_id %}
               <select class="review-select" data-review-item-id="{{ row.review_item_id }}">
@@ -226,7 +176,6 @@
             <th>题号</th>
             <th>问题</th>
             <th>建议</th>
-            <th>状态</th>
           </tr>
         </thead>
         <tbody>
@@ -236,7 +185,6 @@
             <td>{{ row.question_no }}</td>
             <td>{{ row.issue_text }}</td>
             <td>{{ row.suggestion }}</td>
-            <td>{{ row.compare_status }}</td>
           </tr>
           {% endfor %}
         </tbody>
@@ -288,7 +236,6 @@
 {% block scripts %}
 <script src="/static/js/export.js"></script>
 <script src="/static/js/snapshot.js"></script>
-<!-- compat: updateExportPayloadReviewStatus -->
 <script>
   window.EchoPaperSnapshot && window.EchoPaperSnapshot.init({{ payload | tojson }});
 </script>

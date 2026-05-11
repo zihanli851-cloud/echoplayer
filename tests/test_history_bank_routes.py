@@ -6,7 +6,12 @@ import time
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.routes.web import _get_history_bank_service, _resolve_history_bank_pdf_path
+from app.routes.web import (
+    ALL_SUBJECT_VALUE,
+    _get_history_bank_service,
+    _get_upload_subject_options,
+    _resolve_history_bank_pdf_path,
+)
 from app.services.history_bank_jobs import HistoryBankRefreshJobStore
 from app.services.pdf_parser import RoutedPdfParser
 from app.services.review_store import ReviewStore
@@ -83,6 +88,20 @@ def test_history_bank_page_renders_summary(tmp_path) -> None:
     assert "history.pdf" in response.text
     assert "当前工作重点" in response.text
     assert fake_service.refresh_flags == [True]
+
+
+def test_upload_subject_options_follow_history_bank_folders(tmp_path) -> None:
+    (tmp_path / "txt" / "数据结构").mkdir(parents=True)
+    (tmp_path / "pdf" / "离散数学").mkdir(parents=True)
+    (tmp_path / "pdf" / "数据结构").mkdir(parents=True)
+    request = SimpleNamespace(app=SimpleNamespace(state=SimpleNamespace(history_bank_dir=tmp_path)))
+
+    options = _get_upload_subject_options(request)
+
+    assert options[0] == (ALL_SUBJECT_VALUE, "全科目匹配")
+    assert ("数据结构", "数据结构") in options
+    assert ("离散数学", "离散数学") in options
+    assert [value for value, _label in options].count("数据结构") == 1
 
 
 def test_history_bank_upload_saves_pdfs_and_skips_other_files(tmp_path) -> None:

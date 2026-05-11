@@ -2,29 +2,15 @@
   <div class="section-head">
     <div>
       <h2>Dashboard</h2>
-      <p>主视图始终展示代码版结果，右侧补充 Agent 对照统计。</p>
     </div>
   </div>
 
-  <div class="dual-grid">
-    <div class="dashboard">
-      {% for card in dashboard_cards %}
-      <article class="metric">
-        <strong>{{ card.label }}</strong>
-        <span>{{ card.value }}</span>
-        <small>{{ card.hint }}</small>
-      </article>
-      {% endfor %}
-    </div>
-
-    <div class="dashboard">
-      {% for card in agent_dashboard_cards %}
-      <article class="metric">
-        <strong>{{ card.label }}</strong>
-        <span>{{ card.value }}</span>
-        <small>{{ card.hint }}</small>
-      </article>
-      {% endfor %}
-    </div>
+  <div class="dashboard">
+    {% for card in dashboard_cards %}
+    <article class="metric">
+      <strong>{{ card.label }}</strong>
+      <span>{{ card.value }}</span>
+    </article>
+    {% endfor %}
   </div>
 </section>

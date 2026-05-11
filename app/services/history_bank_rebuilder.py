@@ -7,7 +7,7 @@ from pathlib import Path
 import shutil
 
 from app.models.schemas import UploadedPaper
-from app.services.coze_export import CozeExportRecord, export_pdf_to_coze_txt, infer_subject
+from app.services.history_bank_export import HistoryBankExportRecord, export_pdf_to_txt, infer_subject
 from app.services.history_bank import build_source_key
 from app.services.ocr import build_ocr_provider_from_env
 from app.services.pdf_parser import PdfParseError, RoutedPdfParser, TextExtractionProvider
@@ -77,8 +77,8 @@ def rebuild_history_bank_from_pdf(
 
     for index, pdf_path in enumerate(pdf_files, start=1):
         relative_pdf_path = pdf_path.relative_to(pdf_dir)
-        target_txt_path = (txt_dir / relative_pdf_path).with_suffix(".coze.txt")
-        backup_txt_path = (backup_dir / relative_pdf_path).with_suffix(".coze.txt")
+        target_txt_path = (txt_dir / relative_pdf_path).with_suffix(".txt")
+        backup_txt_path = (backup_dir / relative_pdf_path).with_suffix(".txt")
         existing_txt = _find_existing_txt_by_source_key(txt_dir, build_source_key(pdf_path.stem))
         try:
             if existing_txt is not None and not dry_run:
@@ -93,7 +93,7 @@ def rebuild_history_bank_from_pdf(
                     paper_id=f"H{index}",
                 )
             else:
-                export_record = export_pdf_to_coze_txt(
+                export_record = export_pdf_to_txt(
                     pdf_path,
                     target_txt_path,
                     extraction_provider=extraction_provider,
@@ -158,7 +158,7 @@ def _preview_export_record(
     extraction_provider: TextExtractionProvider | None,
     split_provider: RuleQuestionSplitter | None,
     paper_id: str,
-) -> CozeExportRecord:
+) -> HistoryBankExportRecord:
     extraction_provider = extraction_provider or RoutedPdfParser(ocr_provider=build_ocr_provider_from_env())
     split_provider = split_provider or RuleQuestionSplitter()
     subject = infer_subject(pdf_path)
@@ -176,7 +176,7 @@ def _preview_export_record(
         )
         questions = split_provider.split(text_content, paper_id, paper=paper)
     except (PdfParseError, Exception) as exc:
-        return CozeExportRecord(
+        return HistoryBankExportRecord(
             source_pdf=str(pdf_path),
             output_txt=None,
             paper_label=pdf_path.stem,
@@ -187,7 +187,7 @@ def _preview_export_record(
             error=str(exc),
         )
 
-    return CozeExportRecord(
+    return HistoryBankExportRecord(
         source_pdf=str(pdf_path),
         output_txt=None,
         paper_label=pdf_path.stem,

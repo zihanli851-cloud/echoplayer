@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from io import BytesIO
+import os
+from pathlib import Path
 import re
 import textwrap
 
@@ -11,6 +13,15 @@ PAGE_WIDTH = 595
 PAGE_HEIGHT = 842
 MARGIN_X = 48
 MAX_LINES_PER_PAGE = 43
+PDF_DPI = 150
+PAGE_WIDTH_PX = int(PAGE_WIDTH / 72 * PDF_DPI)
+PAGE_HEIGHT_PX = int(PAGE_HEIGHT / 72 * PDF_DPI)
+MARGIN_X_PX = int(MARGIN_X / 72 * PDF_DPI)
+TOP_MARGIN_PX = 82
+FOOTER_Y_PX = PAGE_HEIGHT_PX - 62
+BODY_FONT_SIZE_PX = 23
+FOOTER_FONT_SIZE_PX = 18
+LINE_HEIGHT_PX = 34
 
 
 @dataclass(slots=True)
@@ -20,8 +31,6 @@ class PdfExportResult:
 
 
 def build_report_pdf(export_payload: dict) -> PdfExportResult:
-    """Build a compact PDF summary from the report export payload."""
-
     report = export_payload.get("report", {}) if isinstance(export_payload, dict) else {}
     teacher_name = str(report.get("teacher_name") or "unknown")
     subject = str(report.get("subject") or "unknown")
@@ -36,28 +45,25 @@ def _build_report_lines(payload: dict) -> list[str]:
     report = payload.get("report", {}) if isinstance(payload, dict) else {}
     dashboard = report.get("dashboard", {}) if isinstance(report, dict) else {}
     papers = report.get("uploaded_papers", []) if isinstance(report, dict) else []
-    duplicate_context = payload.get("duplicate_comparison", {}) if isinstance(payload, dict) else {}
-    spellcheck_context = payload.get("spellcheck_comparison", {}) if isinstance(payload, dict) else {}
     history_bank = payload.get("history_bank", {}) if isinstance(payload, dict) else {}
-    dual_run_sections = payload.get("dual_run_sections", []) if isinstance(payload, dict) else []
     same_source_matches = payload.get("same_source_matches", []) if isinstance(payload, dict) else []
     parse_quality = payload.get("parse_quality", []) if isinstance(payload, dict) else []
     question_quality = payload.get("question_quality", []) if isinstance(payload, dict) else []
     complex_question_quality = payload.get("complex_question_quality", []) if isinstance(payload, dict) else []
 
     lines = [
-        "EchoPaper 智能审查报告",
+        "EchoPaper 审查报告",
         "",
         f"教师：{report.get('teacher_name', '')}（{report.get('teacher_id', '')}）",
         f"科目：{report.get('subject', '')}",
         f"生成时间：{_format_datetime(report.get('generated_at', ''))}",
         "",
         "一、总览",
-        f"A 卷题目数：{dashboard.get('paper_a_question_count', 0)}",
-        f"B 卷题目数：{dashboard.get('paper_b_question_count', 0)}",
-        f"高度重复：{_sum_dashboard(dashboard, ['paper_a_internal_high', 'paper_b_internal_high', 'cross_paper_high', 'history_high'])}",
+        f"A 卷题数：{dashboard.get('paper_a_question_count', 0)}",
+        f"B 卷题数：{dashboard.get('paper_b_question_count', 0)}",
+        f"高强度重复：{_sum_dashboard(dashboard, ['paper_a_internal_high', 'paper_b_internal_high', 'cross_paper_high', 'history_high'])}",
         f"疑似重复：{dashboard.get('suspected_duplicate_total', 0)}",
-        f"疑似原题/同源题：{dashboard.get('same_source_total', 0)}",
+        f"疑似同源：{dashboard.get('same_source_total', 0)}",
         f"历史题库命中：{dashboard.get('history_match_total', 0)}",
         f"错字/标点问题：{dashboard.get('spellcheck_issue_total', 0)}",
         f"待人工复核：{dashboard.get('pending_review_total', 0)}",
@@ -67,9 +73,7 @@ def _build_report_lines(payload: dict) -> list[str]:
 
     if papers:
         for paper in papers:
-            lines.append(
-                f"- {paper.get('paper_id', '')}：{paper.get('filename', '')}，页数 {paper.get('page_count', 0)}"
-            )
+            lines.append(f"- {paper.get('paper_id', '')}：{paper.get('filename', '')}，页数 {paper.get('page_count', 0)}")
     else:
         lines.append("- 无上传试卷信息")
 
@@ -90,7 +94,7 @@ def _build_report_lines(payload: dict) -> list[str]:
         if len(parse_quality) > 8:
             lines.append(f"... 其余 {len(parse_quality) - 8} 条解析风险明细请查看页面 JSON。")
     else:
-        lines.append("- 未发现需要额外提示的解析风险。")
+        lines.append("- 未发现额外解析风险。")
 
     lines.extend(["", "四、低置信度切题提示"])
     if question_quality:
@@ -110,7 +114,7 @@ def _build_report_lines(payload: dict) -> list[str]:
     else:
         lines.append("- 未发现低置信度切题结果。")
 
-    lines.extend(["", "五、疑似原题 / 同源题"])
+    lines.extend(["", "五、疑似同源 / 同源题"])
     if same_source_matches:
         for index, row in enumerate(same_source_matches[:8], start=1):
             score = row.get("final_score", row.get("score", ""))
@@ -127,9 +131,9 @@ def _build_report_lines(payload: dict) -> list[str]:
                 ]
             )
         if len(same_source_matches) > 8:
-            lines.append(f"... 其余 {len(same_source_matches) - 8} 条疑似原题结果请查看页面 JSON。")
+            lines.append(f"... 其余 {len(same_source_matches) - 8} 条同源明细请查看页面 JSON。")
     else:
-        lines.append("- 未发现疑似原题或同源题。")
+        lines.append("- 未发现同源题。")
 
     lines.extend(["", "六、复杂题复核提示"])
     if complex_question_quality:
@@ -148,46 +152,9 @@ def _build_report_lines(payload: dict) -> list[str]:
         if len(complex_question_quality) > 8:
             lines.append(f"... 其余 {len(complex_question_quality) - 8} 条复杂题提示请查看页面 JSON。")
     else:
-        lines.append("- 未发现需要单独提示的图片题、图表题或复杂公式题。")
+        lines.append("- 未发现需要单独提示的复杂题。")
 
-    lines.extend(["", "七、查重摘要"])
-    duplicate_summary = duplicate_context.get("summary", {}) if isinstance(duplicate_context, dict) else {}
-    lines.extend(
-        [
-            f"代码/Agent 一致：{duplicate_summary.get('matched', 0)}",
-            f"评分不同：{duplicate_summary.get('score_diff', 0)}",
-            f"代码独有：{duplicate_summary.get('code_only', 0)}",
-            f"Agent 新增：{duplicate_summary.get('agent_only', 0)}",
-        ]
-    )
-    duplicate_rows = duplicate_context.get("code_rows", []) if isinstance(duplicate_context, dict) else []
-    for index, row in enumerate(duplicate_rows[:8], start=1):
-        lines.append(
-            f"{index}. {row.get('comparison_label', '')} | {row.get('level', '')} | {row.get('score', '')}% | "
-            f"{row.get('source_label', '')} -> {row.get('target_label', '')} | 复核：{row.get('review_status', '')}"
-        )
-    if len(duplicate_rows) > 8:
-        lines.append(f"... 其余 {len(duplicate_rows) - 8} 条查重明细请查看页面 JSON。")
-
-    lines.extend(["", "八、错字检查摘要"])
-    spellcheck_summary = spellcheck_context.get("summary", {}) if isinstance(spellcheck_context, dict) else {}
-    lines.extend(
-        [
-            f"代码/Agent 一致：{spellcheck_summary.get('matched', 0)}",
-            f"代码独有：{spellcheck_summary.get('code_only', 0)}",
-            f"Agent 新增：{spellcheck_summary.get('agent_only', 0)}",
-        ]
-    )
-    spellcheck_rows = spellcheck_context.get("code_rows", []) if isinstance(spellcheck_context, dict) else []
-    for index, row in enumerate(spellcheck_rows[:8], start=1):
-        lines.append(
-            f"{index}. {row.get('paper_label', '')}第 {row.get('question_no', '')} 题 | "
-            f"{row.get('issue_type', '')}：{row.get('issue_text', '')} -> {row.get('suggestion', '')}"
-        )
-    if len(spellcheck_rows) > 8:
-        lines.append(f"... 其余 {len(spellcheck_rows) - 8} 条错字明细请查看页面 JSON。")
-
-    lines.extend(["", "九、历史题库"])
+    lines.extend(["", "七、历史题库"])
     if history_bank:
         lines.extend(
             [
@@ -202,22 +169,73 @@ def _build_report_lines(payload: dict) -> list[str]:
     else:
         lines.append("- 未提供历史题库摘要。")
 
-    lines.extend(["", "十、双链路模块状态"])
-    if dual_run_sections:
-        for section in dual_run_sections:
-            lines.append(
-                f"- {section.get('module_name', '')}：{section.get('status', '')}；{section.get('diff_summary', '')}"
-            )
-    else:
-        lines.append("- 未提供双链路对照信息。")
-
     return _wrap_lines(lines)
 
 
 def _render_pdf_lines(lines: list[str]) -> bytes:
+    try:
+        return _render_pdf_lines_with_pillow(lines)
+    except Exception:
+        return _render_minimal_pdf_lines(lines)
+
+
+def _render_pdf_lines_with_pillow(lines: list[str]) -> bytes:
+    from PIL import Image, ImageDraw, ImageFont
+
     pages = [lines[index : index + MAX_LINES_PER_PAGE] for index in range(0, len(lines), MAX_LINES_PER_PAGE)]
     if not pages:
-        pages = [["EchoPaper 智能审查报告"]]
+        pages = [["EchoPaper 审查报告"]]
+
+    font_path = _find_chinese_font_path()
+    body_font = ImageFont.truetype(str(font_path), BODY_FONT_SIZE_PX) if font_path else ImageFont.load_default()
+    footer_font = ImageFont.truetype(str(font_path), FOOTER_FONT_SIZE_PX) if font_path else ImageFont.load_default()
+    images = []
+    for page_index, page_lines in enumerate(pages):
+        image = Image.new("RGB", (PAGE_WIDTH_PX, PAGE_HEIGHT_PX), "white")
+        draw = ImageDraw.Draw(image)
+        y = TOP_MARGIN_PX
+        for line in page_lines:
+            draw.text((MARGIN_X_PX, y), line, fill=(24, 28, 34), font=body_font)
+            y += LINE_HEIGHT_PX
+        draw.text(
+            (MARGIN_X_PX, FOOTER_Y_PX),
+            f"第 {page_index + 1} / {len(pages)} 页",
+            fill=(86, 92, 104),
+            font=footer_font,
+        )
+        images.append(image)
+
+    buffer = BytesIO()
+    first, rest = images[0], images[1:]
+    first.save(buffer, format="PDF", save_all=True, append_images=rest, resolution=PDF_DPI)
+    return buffer.getvalue()
+
+
+def _find_chinese_font_path() -> Path | None:
+    windows_fonts = Path(os.environ.get("WINDIR", r"C:\Windows")) / "Fonts"
+    candidates = [
+        windows_fonts / "NotoSansSC-VF.ttf",
+        windows_fonts / "msyh.ttc",
+        windows_fonts / "simhei.ttf",
+        windows_fonts / "simsun.ttc",
+        windows_fonts / "Deng.ttf",
+        Path("/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc"),
+        Path("/usr/share/fonts/opentype/noto/NotoSansSC-Regular.otf"),
+        Path("/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc"),
+        Path("/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc"),
+        Path("/usr/share/fonts/truetype/arphic/uming.ttc"),
+        Path("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"),
+    ]
+    for path in candidates:
+        if path.exists():
+            return path
+    return None
+
+
+def _render_minimal_pdf_lines(lines: list[str]) -> bytes:
+    pages = [lines[index : index + MAX_LINES_PER_PAGE] for index in range(0, len(lines), MAX_LINES_PER_PAGE)]
+    if not pages:
+        pages = [["EchoPaper 审查报告"]]
 
     objects: list[bytes] = []
     objects.append(b"<< /Type /Catalog /Pages 2 0 R >>")

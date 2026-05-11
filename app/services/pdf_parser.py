@@ -13,10 +13,10 @@ class PdfParseError(Exception):
 
 
 class TextExtractionProvider(ABC):
-    """Provider interface for code-based or Agent-based PDF text extraction."""
+    """Provider interface for local PDF text extraction."""
 
     provider_name = "unknown"
-    provider_label = "未命名解析器"
+    provider_label = "未知解析器"
     is_placeholder = False
     provider_note = ""
 
@@ -115,59 +115,11 @@ class RoutedPdfParser(TextExtractionProvider):
         )
 
 
-class AgentPdfParser(TextExtractionProvider):
-    """
-    Agent-side PDF parser.
-
-    The Coze workflow chain still relies on local PDF text extraction first,
-    so the Agent pipeline intentionally reuses the same parser implementation.
-    """
-
-    provider_name = "agent_pdf_parser"
-    provider_label = "Agent 版文本解析"
-    is_placeholder = False
-    provider_note = "Agent 流程先复用本地 PDF 解析，再调用 Coze 工作流。"
-
-    def __init__(self, fallback_provider: TextExtractionProvider | None = None) -> None:
-        self.fallback_provider = fallback_provider or CodePdfParser()
-        self.last_snapshot = None
-        self.last_note = ""
-
-    def extract(self, pdf_path: Path) -> tuple[str, int]:
-        result = self.fallback_provider.extract(pdf_path)
-        fallback_note = getattr(self.fallback_provider, "provider_note", "")
-        self.last_snapshot = getattr(self.fallback_provider, "last_snapshot", None)
-        self.last_note = str(getattr(self.fallback_provider, "last_note", fallback_note) or "")
-        self.provider_note = "Agent 流程先复用本地 PDF 解析，再调用 Coze 工作流。"
-        if fallback_note:
-            self.provider_note = f"{self.provider_note}{fallback_note}"
-        return result
-
-
 def extract_text_from_pdf(pdf_path: Path) -> tuple[str, int]:
-    """
-    Extract plain text from a PDF with pdfplumber.
-
-    Returns:
-        tuple[str, int]: (joined_text, page_count)
-
-    Raises:
-        PdfParseError: When the file is missing, unreadable, or no text can be extracted.
-    """
-
     return CodePdfParser().extract(pdf_path)
 
 
-def _extract_text_with_pdfplumber(pdf_path: Path) -> tuple[str, int]:
-    """Internal helper used by the code parser implementation."""
-
-    snapshot = _extract_snapshot_with_pdfplumber(pdf_path)
-    return snapshot.text, snapshot.page_count
-
-
 def _extract_snapshot_with_pdfplumber(pdf_path: Path) -> PdfTextSnapshot:
-    """Extract PDF text plus image placeholders and lightweight diagnostics."""
-
     if not pdf_path.exists():
         raise PdfParseError(f"未找到 PDF 文件：{pdf_path.name}")
 
@@ -189,11 +141,7 @@ def _extract_snapshot_with_pdfplumber(pdf_path: Path) -> PdfTextSnapshot:
                 text_char_count += len(text.strip())
                 images = getattr(page, "images", []) or []
                 image_count += len(images)
-                page_text = _build_page_text_with_image_placeholders(
-                    text,
-                    images,
-                    page_number=page_number,
-                )
+                page_text = _build_page_text_with_image_placeholders(text, images, page_number=page_number)
                 if page_text:
                     page_texts.append(page_text)
 
@@ -220,8 +168,6 @@ def _build_page_text_with_image_placeholders(
     *,
     page_number: int,
 ) -> str:
-    """Combine extracted text with stable placeholders for PDF image objects."""
-
     parts: list[str] = []
     if text.strip():
         parts.append(text.strip())
@@ -285,7 +231,7 @@ def _build_parser_note(snapshot: PdfTextSnapshot, ocr_threshold: int) -> str:
         )
     if snapshot.image_count > 0:
         return "该 PDF 包含图片对象，已在文本中保留 [IMAGE ...] 占位符。"
-    return "该 PDF 可直接提取文字。"
+    return "该 PDF 可直接提取文本。"
 
 
 def _should_run_ocr(snapshot: PdfTextSnapshot, ocr_threshold: int) -> bool:

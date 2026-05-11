@@ -1,8 +1,5 @@
 .page-home {
-  background:
-    radial-gradient(circle at top right, rgba(31, 110, 99, 0.12), transparent 24%),
-    radial-gradient(circle at left center, rgba(212, 104, 60, 0.12), transparent 28%),
-    linear-gradient(135deg, #f7f1e8 0%, #ebe3d4 100%);
+  background: #f4efe6;
 }
 
 .home-hero {
@@ -11,15 +8,7 @@
 }
 
 .home-hero::after {
-  content: "";
-  position: absolute;
-  top: -80px;
-  right: -40px;
-  width: 240px;
-  height: 240px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(212, 104, 60, 0.18) 0%, rgba(212, 104, 60, 0) 72%);
-  pointer-events: none;
+  content: none;
 }
 
 .home-hero__summary,
@@ -78,7 +67,8 @@
 }
 
 .home-workbench {
-  grid-template-columns: minmax(0, 1.45fr) minmax(300px, 0.95fr);
+  max-width: 860px;
+  grid-template-columns: 1fr;
   align-items: start;
 }
 

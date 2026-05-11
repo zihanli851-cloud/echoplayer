@@ -2,7 +2,6 @@
   <div class="section-head">
     <div>
       <h2>疑似原题 / 同源题</h2>
-      <p>单独展示模板分显著高于字面分的结果，方便优先复核“改数字、改参数、改样例”的原题风险。</p>
     </div>
   </div>
 
@@ -16,7 +15,7 @@
           <div class="badge-row">
             <span class="badge type">综合 {{ row.score }}%</span>
             <span class="badge info">字面 {{ row.literal_score }}%</span>
-            <span class="badge agent">模板 {{ row.template_score }}%</span>
+            <span class="badge template-score">模板 {{ row.template_score }}%</span>
             <span class="badge suspect">{{ row.same_source_flag }}</span>
           </div>
         </div>
@@ -36,7 +35,6 @@
       <div class="comparison-note"><p>{{ row.reason }}</p></div>
 
       <div class="review-area">
-        <p>人工复核：优先核查题干结构是否一致，是否仅替换了数字、年份、区间、参数或样例数据。</p>
         <label>
           <select name="review_status_same_source_{{ row.match_id }}" data-review-item-id="{{ row.review_item_id or '' }}" data-review-session-id="{{ row.review_session_id or '' }}">
             {% for option in row.review_options %}
@@ -50,7 +48,7 @@
     {% endfor %}
   </div>
   {% else %}
-  {% with message="当前代码版结果中没有单独命中的疑似原题或同源题。" %}
+  {% with message="暂无疑似原题。" %}
   {% include 'partials/shared/empty_state.html' %}
   {% endwith %}
   {% endif %}

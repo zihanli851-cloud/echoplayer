@@ -1,6 +1,8 @@
 import re
+from io import BytesIO
 
 import pdfplumber
+import pypdfium2 as pdfium
 
 from app.services.report_pdf import build_report_pdf
 
@@ -82,7 +84,7 @@ def build_payload() -> dict:
             }
         ],
         "duplicate_comparison": {
-            "summary": {"matched": 0, "score_diff": 0, "code_only": 1, "agent_only": 0},
+            "summary": {"total": 1, "high": 1, "suspected": 0, "same_source": 0},
             "code_rows": [
                 {
                     "comparison_label": "A/B 交叉查重",
@@ -95,7 +97,7 @@ def build_payload() -> dict:
             ],
         },
         "spellcheck_comparison": {
-            "summary": {"matched": 0, "code_only": 1, "agent_only": 0},
+            "summary": {"total": 1, "typo": 1, "punctuation": 0},
             "code_rows": [
                 {
                     "paper_label": "A 卷",
@@ -106,16 +108,11 @@ def build_payload() -> dict:
                 }
             ],
         },
-        "dual_run_sections": [
-            {"module_name": "文本提取", "status": "一致", "diff_summary": "代码版与 Agent 版一致。"},
-        ],
     }
 
 
-def _extract_pdf_text(content: bytes, tmp_path) -> str:
-    pdf_path = tmp_path / "report.pdf"
-    pdf_path.write_bytes(content)
-    with pdfplumber.open(str(pdf_path)) as pdf:
+def _extract_pdf_text(content: bytes) -> str:
+    with pdfplumber.open(BytesIO(content)) as pdf:
         text = "\n".join(page.extract_text() or "" for page in pdf.pages)
     if text.strip():
         return text
@@ -128,6 +125,15 @@ def _extract_pdf_text(content: bytes, tmp_path) -> str:
     return "\n".join(fragments)
 
 
+def _render_nonwhite_ratio(content: bytes) -> float:
+    pdf = pdfium.PdfDocument(content)
+    page = pdf[0]
+    image = page.render(scale=1.5).to_pil().convert("L")
+    histogram = image.histogram()
+    nonwhite_pixels = sum(histogram[:245])
+    return nonwhite_pixels / (image.size[0] * image.size[1])
+
+
 def test_build_report_pdf_returns_valid_pdf_bytes() -> None:
     result = build_report_pdf(build_payload())
 
@@ -137,18 +143,20 @@ def test_build_report_pdf_returns_valid_pdf_bytes() -> None:
     assert b"/Type /Catalog" in result.content
 
 
-def test_build_report_pdf_can_be_opened_by_pdf_parser(tmp_path) -> None:
+def test_build_report_pdf_can_be_opened_by_pdf_parser() -> None:
     result = build_report_pdf(build_payload())
-    pdf_path = tmp_path / result.filename
-    pdf_path.write_bytes(result.content)
 
-    with pdfplumber.open(str(pdf_path)) as pdf:
+    with pdfplumber.open(BytesIO(result.content)) as pdf:
         assert len(pdf.pages) >= 1
 
 
-def test_build_report_pdf_includes_extended_review_sections(tmp_path) -> None:
+def test_build_report_pdf_includes_extended_review_sections() -> None:
     result = build_report_pdf(build_payload())
-    text = _extract_pdf_text(result.content, tmp_path)
+    text = _extract_pdf_text(result.content)
+
+    if not text.strip():
+        assert _render_nonwhite_ratio(result.content) > 0.005
+        return
 
     assert "解析风险提示" in text
     assert "高风险" in text

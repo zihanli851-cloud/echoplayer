@@ -10,7 +10,7 @@
   <section class="card">
     {% set eyebrow = "EchoPaper / 历史题库" %}
     {% set title = "历史题库管理" %}
-    {% set description = "管理 `data/datasets/history_bank` 中的历史 PDF。上传后会先更新文件列表；需要解析题目和重建轻量索引时，可使用后台重建任务。" %}
+    {% set description = "" %}
     {% set actions_html = '<a href=\"/history-bank?refresh=true\">刷新题库缓存</a><button type=\"button\" id=\"rebuild-history-bank\">后台重建缓存/索引</button>' %}
     {% include "partials/layout/page_header.html" %}
 
@@ -42,11 +42,9 @@
     <div class="admin-card-grid section">
       <article class="admin-soft-card">
         <strong>当前工作重点</strong>
-        <p>先看最近重建任务是否失败，再处理加载失败文件，最后再做上传和删除操作。</p>
       </article>
       <article class="admin-soft-card">
         <strong>筛选状态</strong>
-        <p>当前科目：{{ summary.active_subject or "全部" }} ｜ 当前关键词：{{ summary.active_keyword or "未筛选" }}</p>
       </article>
     </div>
 
@@ -54,7 +52,6 @@
       <div class="section-head">
         <div>
           <h2>上传历史 PDF</h2>
-          <p>支持一次选择多份 PDF。扫描版或无法提取文本的文件会记录为加载失败，不会阻塞其他文件。</p>
         </div>
       </div>
       <form action="/history-bank/upload" method="post" enctype="multipart/form-data" class="upload-box">

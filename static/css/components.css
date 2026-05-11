@@ -152,7 +152,7 @@ body.page-admin .empty {
   background: rgba(180, 35, 24, 0.12);
 }
 
-.badge.agent {
+.badge.template-score {
   color: #6d4ca1;
   background: rgba(109, 76, 161, 0.12);
 }

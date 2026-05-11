@@ -2,7 +2,6 @@
   <div class="section-head">
     <div>
       <h2>复杂题复核提示</h2>
-      <p>定位包含图片、图表、OCR 回填或复杂公式表达的题目，方便直接回看原卷 PDF。</p>
     </div>
   </div>
 
@@ -36,7 +35,7 @@
     </table>
   </div>
   {% else %}
-  {% with message="当前代码版未额外识别到需要单独提示的图片题、图表题或复杂公式题。" %}
+  {% with message="暂无复杂题提示。" %}
   {% include 'partials/shared/empty_state.html' %}
   {% endwith %}
   {% endif %}

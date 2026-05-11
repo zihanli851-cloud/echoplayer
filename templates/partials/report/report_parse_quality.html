@@ -2,7 +2,6 @@
   <div class="section-head">
     <div>
       <h2>解析风险提示</h2>
-      <p>集中展示图片题、扫描页、OCR 触发情况，以及建议人工复核的试卷入口。</p>
     </div>
   </div>
 
@@ -36,7 +35,7 @@
     </table>
   </div>
   {% else %}
-  {% with message="当前上传试卷未发现明显图片题、扫描页或 OCR 风险提示。" %}
+  {% with message="暂无解析风险。" %}
   {% include 'partials/shared/empty_state.html' %}
   {% endwith %}
   {% endif %}

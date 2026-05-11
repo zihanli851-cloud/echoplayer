@@ -33,7 +33,7 @@ PAPER_SIDE_NAMES = {"a", "b"}
 
 
 @dataclass(slots=True)
-class CozeExportRecord:
+class HistoryBankExportRecord:
     source_pdf: str
     output_txt: str | None
     paper_label: str
@@ -48,8 +48,6 @@ class CozeExportRecord:
 
 
 def infer_subject(pdf_path: Path) -> str:
-    """Infer a subject from the PDF filename first, then useful parent folders."""
-
     from_filename = _infer_subject_from_filename(pdf_path.stem)
     if from_filename:
         return from_filename
@@ -67,7 +65,7 @@ def infer_subject(pdf_path: Path) -> str:
     return "unknown"
 
 
-def export_pdf_to_coze_txt(
+def export_pdf_to_txt(
     pdf_path: Path,
     output_path: Path,
     *,
@@ -76,9 +74,7 @@ def export_pdf_to_coze_txt(
     subject_override: str | None = None,
     paper_id: str = "H1",
     nl_token: str = DEFAULT_NL_TOKEN,
-) -> CozeExportRecord:
-    """Export one PDF into Coze one-question-per-line knowledge text."""
-
+) -> HistoryBankExportRecord:
     extraction_provider = extraction_provider or RoutedPdfParser(ocr_provider=build_ocr_provider_from_env())
     split_provider = split_provider or RuleQuestionSplitter()
     subject = (subject_override or infer_subject(pdf_path)).strip() or "unknown"
@@ -97,7 +93,7 @@ def export_pdf_to_coze_txt(
         )
         questions = split_provider.split(text_content, paper_id, paper=paper)
     except (PdfParseError, Exception) as exc:
-        return CozeExportRecord(
+        return HistoryBankExportRecord(
             source_pdf=str(pdf_path),
             output_txt=None,
             paper_label=paper_label,
@@ -110,11 +106,11 @@ def export_pdf_to_coze_txt(
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(
-        build_coze_document(paper=paper, questions=questions, source_pdf=pdf_path, nl_token=nl_token),
+        build_history_document(paper=paper, questions=questions, source_pdf=pdf_path, nl_token=nl_token),
         encoding="utf-8",
     )
 
-    return CozeExportRecord(
+    return HistoryBankExportRecord(
         source_pdf=str(pdf_path),
         output_txt=str(output_path),
         paper_label=paper_label,
@@ -125,7 +121,7 @@ def export_pdf_to_coze_txt(
     )
 
 
-def export_pdf_tree_to_coze_txt(
+def export_pdf_tree_to_txt(
     input_root: Path,
     output_root: Path,
     *,
@@ -135,10 +131,8 @@ def export_pdf_tree_to_coze_txt(
     nl_token: str = DEFAULT_NL_TOKEN,
     limit: int | None = None,
     progress_callback=None,
-) -> list[CozeExportRecord]:
-    """Export all PDFs under a directory, preserving relative paths."""
-
-    records: list[CozeExportRecord] = []
+) -> list[HistoryBankExportRecord]:
+    records: list[HistoryBankExportRecord] = []
     pdf_files = sorted(input_root.rglob("*.pdf"), key=lambda current: str(current).lower())
     if limit is not None and limit > 0:
         pdf_files = pdf_files[:limit]
@@ -148,9 +142,9 @@ def export_pdf_tree_to_coze_txt(
         if progress_callback is not None:
             progress_callback(index, total, pdf_path)
         relative_path = pdf_path.relative_to(input_root)
-        output_path = (output_root / relative_path).with_suffix(".coze.txt")
+        output_path = (output_root / relative_path).with_suffix(".txt")
         records.append(
-            export_pdf_to_coze_txt(
+            export_pdf_to_txt(
                 pdf_path,
                 output_path,
                 extraction_provider=extraction_provider,
@@ -163,15 +157,13 @@ def export_pdf_tree_to_coze_txt(
     return records
 
 
-def build_coze_document(
+def build_history_document(
     *,
     paper: UploadedPaper,
     questions: list[Question],
     source_pdf: Path,
     nl_token: str = DEFAULT_NL_TOKEN,
 ) -> str:
-    """Build Coze knowledge text, one question per line."""
-
     paper_label = source_pdf.stem
     subject = paper.subject or "unknown"
 
@@ -206,7 +198,7 @@ def build_coze_document(
     )
 
 
-def write_manifest(records: list[CozeExportRecord], manifest_path: Path) -> None:
+def write_manifest(records: list[HistoryBankExportRecord], manifest_path: Path) -> None:
     manifest_path.parent.mkdir(parents=True, exist_ok=True)
     payload = {
         "total": len(records),
@@ -260,4 +252,4 @@ def _infer_subject_from_filename(stem: str) -> str:
 
 def _looks_like_year_term(value: str) -> bool:
     compact = re.sub(r"\s+", "", value)
-    return bool(re.fullmatch(r"[（(]?\d{2,4}-\d{2,4}-\d[）)]?", compact))
+    return bool(re.fullmatch(r"[（]?\d{2,4}-\d{2,4}-\d[）]?", compact))

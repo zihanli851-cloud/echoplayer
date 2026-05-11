@@ -2,25 +2,24 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 import re
-from typing import Any
 
 from app.models.schemas import Question, UploadedPaper
-from app.services.coze_service import CozeService, CozeServiceError
-from app.services.nuwa_service import NuwaService, NuwaServiceError
 
 
-CHINESE_MAJOR_PATTERN = re.compile(r"^(?P<label>[一二三四五六七八九十]+)[、.．:：)]?\s*(?P<body>.*)$")
-ARABIC_MAJOR_PATTERN = re.compile(r"^(?P<label>[1-9]\d*)[、.．:：)]\s*(?P<body>.*)$")
+CHINESE_MAJOR_PATTERN = re.compile(r"^(?P<label>[一二三四五六七八九十]+)[、.，]?\s*(?P<body>.*)$")
+ARABIC_MAJOR_PATTERN = re.compile(r"^(?P<label>[1-9]\d*)[、.，]\s*(?P<body>.*)$")
 SUBQUESTION_PATTERN = re.compile(r"^(?P<label>[（(]\d+[)）])\s*(?P<body>.*)$")
 PAGE_NUMBER_PATTERN = re.compile(r"^\d{1,3}$")
-TABLE_HEADER_SEPARATOR_PATTERN = re.compile(r"[:：]\s*")
+TABLE_HEADER_SEPARATOR_PATTERN = re.compile(r"[:：\s]*")
 SCHOOL_HEADER_PATTERN = re.compile(
-    r"(大学|学院|学校|课程|科目|考试|试卷|教务|学期|班级|专业|姓名|学号|教师|学院|系|部)"
+    r"(大学|学院|学校|课程|科目|考试|试卷|教务|学期|班级|专业|姓名|学号|老师|系部)"
 )
 
 SECTION_HEADING_KEYWORDS = (
     "选择题",
+    "选题",
     "单项选择题",
+    "单项选题",
     "多项选择题",
     "填空题",
     "判断题",
@@ -34,12 +33,21 @@ SECTION_HEADING_KEYWORDS = (
     "证明题",
     "分析题",
     "案例题",
-    "案例分析题",
     "综合题",
     "阅读题",
     "翻译题",
     "实验题",
     "操作题",
+)
+
+PREAMBLE_SECTION_KEYWORDS = (
+    "考试准备",
+    "答题要求",
+    "考试要求",
+    "考试说明",
+    "试卷说明",
+    "考生注意事项",
+    "注意事项",
 )
 
 PREAMBLE_TRIGGER_KEYWORDS = (
@@ -61,7 +69,13 @@ PREAMBLE_TRIGGER_KEYWORDS = (
     "学校",
     "班级",
     "专业",
-    "装订线",
+    "本套试题",
+    "考试用品",
+    "以下各项由学生填写",
+    "答题纸",
+    "试题册",
+    "不得携带",
+    "考场纪律",
 )
 
 NOISE_HEADER_KEYWORDS = (
@@ -74,7 +88,6 @@ NOISE_HEADER_KEYWORDS = (
     "试卷",
     "命题教师",
     "任课教师",
-    "教研室",
     "班级",
     "姓名",
     "学号",
@@ -99,8 +112,6 @@ FORMULA_GLYPH_MAP = {
 
 
 class QuestionSplitProvider(ABC):
-    """Provider interface for code-based or Agent-based question splitting."""
-
     provider_name = "unknown"
     provider_label = "Unknown Splitter"
     is_placeholder = False
@@ -114,14 +125,12 @@ class QuestionSplitProvider(ABC):
         *,
         paper: UploadedPaper | None = None,
     ) -> list[Question]:
-        """Split a paper text into structured questions."""
+        raise NotImplementedError
 
 
 class RuleQuestionSplitter(QuestionSplitProvider):
-    """Rule-based question splitter used by the code pipeline."""
-
     provider_name = "rule_question_splitter"
-    provider_label = "代码版规则切题"
+    provider_label = "规则切题"
 
     def __init__(self, *, split_mode: str = "major_question_mode") -> None:
         self.split_mode = split_mode
@@ -134,130 +143,6 @@ class RuleQuestionSplitter(QuestionSplitProvider):
         paper: UploadedPaper | None = None,
     ) -> list[Question]:
         return _split_questions_impl(text, paper_id, split_mode=self.split_mode)
-
-
-class AgentQuestionSplitter(QuestionSplitProvider):
-    """Agent-side splitter backed by Coze/Nuwa with local fallback."""
-
-    provider_name = "agent_question_splitter"
-    provider_label = "Agent 切题"
-
-    def __init__(
-        self,
-        *,
-        coze_service: CozeService | None = None,
-        nuwa_service: NuwaService | None = None,
-        fallback_provider: QuestionSplitProvider | None = None,
-    ) -> None:
-        self._service: Any = None
-        self._service_type = ""
-        if coze_service is not None:
-            self._service = coze_service
-            self._service_type = "coze"
-        elif nuwa_service is not None:
-            self._service = nuwa_service
-            self._service_type = "nuwa"
-        else:
-            try:
-                self._service = CozeService()
-                self._service_type = "coze"
-            except CozeServiceError:
-                self._service = NuwaService()
-                self._service_type = "nuwa"
-        self.fallback_provider = fallback_provider or RuleQuestionSplitter()
-        self._paper_notes: dict[str, str] = {}
-
-    def split(
-        self,
-        text: str,
-        paper_id: str,
-        *,
-        paper: UploadedPaper | None = None,
-    ) -> list[Question]:
-        stripped = text.strip()
-        if not stripped:
-            self.is_placeholder = True
-            self._set_note(paper_id, f"{paper_id} 卷未提取到文本，Agent 切题跳过。")
-            return []
-
-        try:
-            if self._service_type == "coze":
-                local_questions = self.fallback_provider.split(stripped, paper_id, paper=paper)
-                response = self._service.execute_split(
-                    stripped,
-                    paper_id=paper_id,
-                    subject=paper.subject if paper else "",
-                    filename=paper.filename if paper else "",
-                    questions=[
-                        {
-                            "content": question.content,
-                            "order": question.order,
-                            "question_id": question.question_id,
-                            "question_no": question.question_no,
-                        }
-                        for question in local_questions
-                    ]
-                    or None,
-                )
-            else:
-                response = self._service.execute_split_workflow(
-                    build_split_workflow_inputs(paper, paper_id, stripped)
-                )
-        except (CozeServiceError, NuwaServiceError) as exc:
-            if self._service_type == "coze":
-                self.is_placeholder = True
-                self._set_note(paper_id, f"{paper_id} 卷 Coze 切题调用失败：{exc}")
-                return []
-            self._set_note(paper_id, f"{paper_id} 卷 Nuwa 切题调用失败，已回退本地规则：{exc}")
-            return self.fallback_provider.split(stripped, paper_id, paper=paper)
-
-        questions = self._normalize_questions(response, paper_id)
-        if questions:
-            self.is_placeholder = False
-            service_name = "Coze" if self._service_type == "coze" else "Nuwa"
-            self._set_note(paper_id, f"{paper_id} 卷 Agent 切题已接入 {service_name} 工作流。")
-            return questions
-
-        if self._service_type == "coze":
-            self.is_placeholder = True
-            self._set_note(paper_id, f"{paper_id} 卷 Coze 切题未返回可识别题目。")
-            return []
-
-        self._set_note(paper_id, f"{paper_id} 卷 Nuwa 切题未返回可识别题目，已回退本地规则。")
-        return self.fallback_provider.split(stripped, paper_id, paper=paper)
-
-    def _normalize_questions(self, response: Any, paper_id: str) -> list[Question]:
-        items = _find_question_container(response)
-        if items is None:
-            return []
-        flattened: list[Question] = []
-        seen: set[tuple[str, str]] = set()
-        _append_questions_from_value(items, paper_id, flattened, seen)
-        return flattened
-
-    def _set_note(self, paper_id: str, note: str) -> None:
-        self._paper_notes[paper_id] = note
-        self.provider_note = "；".join(self._paper_notes[key] for key in sorted(self._paper_notes))
-
-
-def build_split_workflow_inputs(
-    paper: UploadedPaper | None,
-    paper_id: str,
-    text: str,
-) -> dict[str, Any]:
-    filename = paper.filename if paper else f"{paper_id}.pdf"
-    subject = paper.subject if paper else ""
-    page_count = paper.page_count if paper else 0
-    return {
-        "paper_id": paper_id,
-        "subject": subject,
-        "filename": filename,
-        "page_count": page_count,
-        "text_content": text,
-        "text": text,
-        "content": text,
-        "paper_text": text,
-    }
 
 
 def normalize_formula_glyphs(text: str) -> str:
@@ -274,8 +159,8 @@ def normalize_question_text(text: str) -> str:
     normalized = normalized.replace("\r\n", "\n").replace("\r", "\n").replace("\u3000", " ")
     normalized = re.sub(r"[ \t]+", " ", normalized)
     normalized = re.sub(r" +([（(]\d+[)）])", r"\n\1", normalized)
-    normalized = re.sub(r" +([一二三四五六七八九十]+[、.．:：)])", r"\n\1", normalized)
-    normalized = re.sub(r" +([1-9]\d*[、.．:：)])", r"\n\1", normalized)
+    normalized = re.sub(r" +([一二三四五六七八九十]+[、.，])", r"\n\1", normalized)
+    normalized = re.sub(r" +([1-9]\d*[、，]|[1-9]\d*\.(?!\d))", r"\n\1", normalized)
     return normalized.strip()
 
 
@@ -321,6 +206,12 @@ def strip_preamble_lines(lines: list[str]) -> list[str]:
     in_preamble = False
 
     for index, line in enumerate(lines):
+        marker = match_major_question_marker(line)
+        if marker and _is_preamble_section_body(marker[1]):
+            in_preamble = True
+            start_index = index + 1
+            continue
+
         if _looks_like_header_noise(line):
             in_preamble = True
             start_index = index + 1
@@ -334,7 +225,10 @@ def strip_preamble_lines(lines: list[str]) -> list[str]:
         if is_section_heading(line):
             return lines[index:]
 
-        marker = match_major_question_marker(line)
+        if in_preamble and marker:
+            start_index = index + 1
+            continue
+
         if marker:
             return lines[index:]
 
@@ -342,6 +236,11 @@ def strip_preamble_lines(lines: list[str]) -> list[str]:
             start_index = index + 1
 
     return lines[start_index:]
+
+
+def _is_preamble_section_body(body: str) -> bool:
+    compact = re.sub(r"\s+", "", body or "")
+    return any(keyword in compact for keyword in PREAMBLE_SECTION_KEYWORDS)
 
 
 def split_questions(text: str, paper_id: str) -> list[Question]:
@@ -358,7 +257,7 @@ def _looks_like_header_noise(line: str) -> bool:
         return True
     if compact.count(" ") >= 3 and SCHOOL_HEADER_PATTERN.search(compact):
         return True
-    if re.fullmatch(r"[A-Za-z0-9_\-（）()：:、\s]+", compact) and SCHOOL_HEADER_PATTERN.search(compact):
+    if re.fullmatch(r"[A-Za-z0-9_\-（）（）().、.\s]+", compact) and SCHOOL_HEADER_PATTERN.search(compact):
         return True
     return False
 
@@ -440,7 +339,7 @@ def _split_questions_impl(text: str, paper_id: str, *, split_mode: str) -> list[
     if not saw_major_marker:
         return _mark_low_confidence_questions(
             questions,
-            "未识别到明确大题边界，已按兜底策略切题，请人工复核。",
+            "未识别到明显大题边界，已按兜底策略切题，请人工复核。",
             confidence=0.5,
         )
     return questions
@@ -461,109 +360,3 @@ def _mark_low_confidence_questions(
         )
         for question in questions
     ]
-
-
-QUESTION_BODY_KEYS = (
-    "content",
-    "question_content",
-    "question_text",
-    "text",
-    "body",
-    "stem",
-    "question",
-)
-QUESTION_NO_KEYS = (
-    "question_no",
-    "question_number",
-    "number",
-    "no",
-    "label",
-    "title",
-    "name",
-)
-QUESTION_CHILD_KEYS = ("content", "children", "items", "questions", "question_list", "sections", "data")
-
-
-def _find_question_container(value: Any) -> Any | None:
-    if isinstance(value, list):
-        if _looks_like_question_list(value):
-            return value
-        for child in value:
-            nested = _find_question_container(child)
-            if nested is not None:
-                return nested
-        return None
-    if isinstance(value, dict):
-        for child in value.values():
-            if isinstance(child, list) and _looks_like_question_list(child):
-                return child
-        for child in value.values():
-            nested = _find_question_container(child)
-            if nested is not None:
-                return nested
-    return None
-
-
-def _looks_like_question_list(value: list[Any]) -> bool:
-    dict_items = [item for item in value if isinstance(item, dict)]
-    if not dict_items:
-        return False
-    return any(_extract_question_body(item) or any(key in item for key in QUESTION_CHILD_KEYS) for item in dict_items)
-
-
-def _append_questions_from_value(
-    value: Any,
-    paper_id: str,
-    questions: list[Question],
-    seen_signatures: set[tuple[str, str]],
-) -> None:
-    if isinstance(value, list):
-        for child in value:
-            _append_questions_from_value(child, paper_id, questions, seen_signatures)
-        return
-
-    if not isinstance(value, dict):
-        return
-
-    body = _extract_question_body(value)
-    if body:
-        normalized_body = body.strip()
-        question_no = _extract_question_no(value, normalized_body, len(questions) + 1)
-        signature = (question_no, normalized_body)
-        if signature not in seen_signatures:
-            seen_signatures.add(signature)
-            order = len(questions) + 1
-            questions.append(
-                Question(
-                    question_id=f"{paper_id}-{order}",
-                    paper_id=paper_id,
-                    question_no=question_no,
-                    order=order,
-                    content=normalized_body,
-                    raw_block=normalized_body,
-                )
-            )
-
-    for key in QUESTION_CHILD_KEYS:
-        child = value.get(key)
-        if isinstance(child, (list, dict)):
-            _append_questions_from_value(child, paper_id, questions, seen_signatures)
-
-
-def _extract_question_body(value: dict[str, Any]) -> str:
-    for key in QUESTION_BODY_KEYS:
-        candidate = value.get(key)
-        if isinstance(candidate, str) and candidate.strip():
-            return candidate.strip()
-    return ""
-
-
-def _extract_question_no(value: dict[str, Any], body: str, order: int) -> str:
-    for key in QUESTION_NO_KEYS:
-        candidate = value.get(key)
-        if isinstance(candidate, str) and candidate.strip():
-            return candidate.strip()
-    marker = match_question_marker(body)
-    if marker:
-        return marker[0]
-    return str(order)

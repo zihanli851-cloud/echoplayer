@@ -1,7 +1,8 @@
+from __future__ import annotations
+
 from datetime import datetime
 from pathlib import Path
 import json
-import os
 from urllib.parse import quote
 
 from fastapi import APIRouter, File, Form, HTTPException, Query, Request, UploadFile
@@ -9,28 +10,18 @@ from fastapi.responses import HTMLResponse, JSONResponse, Response
 from fastapi.templating import Jinja2Templates
 
 from app.models.schemas import UploadedPaper
-from app.services.agent_jobs import AgentJobStore, build_agent_pending_result, pipeline_result_payload, pipeline_result_summary
-from app.services.comparator import (
-    AgentSimilarityComparator,
-    CodeSimilarityComparator,
-    SkippedAgentSimilarityComparator,
-)
-from app.services.coze_service import CozeService
-from app.services.dual_run import DualRunReviewService, ReviewPipeline
-from app.services.history_bank import HistoryBankService
-from app.services.history_bank_jobs import HistoryBankRefreshJobStore
+from app.services.comparator import CodeSimilarityComparator
 from app.services.document_parser import DocumentParseError, RoutedDocumentParser
+from app.services.review_pipeline import ReviewPipeline
+from app.services.history_bank import GENERIC_HISTORY_PARENT_NAMES, HistoryBankService
+from app.services.history_bank_jobs import HistoryBankRefreshJobStore
 from app.services.ocr import build_ocr_provider_from_env
-from app.services.pdf_parser import AgentPdfParser, PdfParseError, RoutedPdfParser
-from app.services.question_splitter import AgentQuestionSplitter, RuleQuestionSplitter
+from app.services.pdf_parser import PdfParseError, RoutedPdfParser
+from app.services.question_splitter import RuleQuestionSplitter
 from app.services.report_builder import ReportBuilder
 from app.services.report_pdf import build_report_pdf
 from app.services.review_store import REVIEW_STATUS_OPTIONS, ReviewStore
 from app.services.spellcheck.local_provider import LocalSpellcheckProvider
-from app.services.spellcheck.coze_provider import (
-    CozeSpellcheckProvider,
-    SkippedCozeSpellcheckProvider,
-)
 from app.utils.file_manager import cleanup_processing_dir, create_processing_dir, ensure_directory, save_upload_file
 
 
@@ -39,7 +30,10 @@ templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 router = APIRouter()
 
 
-SUBJECT_OPTIONS = [
+ALL_SUBJECT_VALUE = "__all__"
+ALL_SUBJECT_LABEL = "全科目匹配"
+
+LEGACY_SUBJECT_OPTIONS = [
     ("chinese", "语文"),
     ("math", "数学"),
     ("english", "英语"),
@@ -50,30 +44,10 @@ SUBJECT_OPTIONS = [
     ("geography", "地理"),
 ]
 
-DEFAULT_AGENT_TIMEOUT = 60.0  # 1 分钟
-
-
-def get_agent_timeout() -> float:
-    raw_value = os.getenv("AGENT_TIMEOUT", "").strip()
-    if not raw_value:
-        return DEFAULT_AGENT_TIMEOUT
-    try:
-        return max(1.0, float(raw_value))
-    except ValueError:
-        return DEFAULT_AGENT_TIMEOUT
-
-
-def is_enabled_env(name: str, *, default: bool) -> bool:
-    raw_value = os.getenv(name, "").strip().lower()
-    if not raw_value:
-        return default
-    return raw_value in {"1", "true", "yes", "on", "enabled"}
-
 
 def is_pdf_file(upload: UploadFile | None) -> bool:
     if upload is None:
         return False
-
     filename = (upload.filename or "").lower()
     content_type = (upload.content_type or "").lower()
     return filename.endswith(".pdf") or content_type == "application/pdf"
@@ -82,7 +56,6 @@ def is_pdf_file(upload: UploadFile | None) -> bool:
 def is_review_document(upload: UploadFile | None) -> bool:
     if upload is None:
         return False
-
     filename = (upload.filename or "").lower()
     content_type = (upload.content_type or "").lower()
     return (
@@ -90,31 +63,6 @@ def is_review_document(upload: UploadFile | None) -> bool:
         or filename.endswith(".docx")
         or content_type == "application/pdf"
         or content_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-    )
-
-
-def render_index(
-    request: Request,
-    *,
-    form_data: dict,
-    message: str = "",
-    message_type: str = "",
-    result: dict | None = None,
-    status_code: int = 200,
-) -> HTMLResponse:
-    """Render the upload page with a unified context."""
-
-    return _render_template(
-        request,
-        "index.html",
-        {
-            "subject_options": SUBJECT_OPTIONS,
-            "form_data": form_data,
-            "message": message,
-            "message_type": message_type,
-            "result": result,
-        },
-        status_code=status_code,
     )
 
 
@@ -132,10 +80,28 @@ def _render_template(
     }
     if context:
         payload.update(context)
-    return templates.TemplateResponse(
+    return templates.TemplateResponse(request, template_name, payload, status_code=status_code)
+
+
+def render_index(
+    request: Request,
+    *,
+    form_data: dict,
+    message: str = "",
+    message_type: str = "",
+    result: dict | None = None,
+    status_code: int = 200,
+) -> HTMLResponse:
+    return _render_template(
         request,
-        template_name,
-        payload,
+        "index.html",
+        {
+            "subject_options": _get_upload_subject_options(request),
+            "form_data": form_data,
+            "message": message,
+            "message_type": message_type,
+            "result": result,
+        },
         status_code=status_code,
     )
 
@@ -147,7 +113,7 @@ async def index(request: Request) -> HTMLResponse:
         form_data={
             "teacher_name": "",
             "teacher_id": "",
-            "subject": "chinese",
+            "subject": ALL_SUBJECT_VALUE,
         },
     )
 
@@ -210,7 +176,9 @@ async def upload_history_bank(
     request: Request,
     files: list[UploadFile] = File(...),
 ) -> HTMLResponse:
-    history_bank_dir = ensure_directory(getattr(request.app.state, "history_bank_dir", BASE_DIR / "data" / "datasets" / "history_bank"))
+    history_bank_dir = ensure_directory(
+        getattr(request.app.state, "history_bank_dir", BASE_DIR / "data" / "datasets" / "history_bank")
+    )
     saved_count = 0
     skipped_names: list[str] = []
 
@@ -219,14 +187,12 @@ async def upload_history_bank(
             skipped_names.append(upload.filename or "未命名文件")
             await upload.close()
             continue
-
         await _save_history_bank_upload(upload, history_bank_dir)
         saved_count += 1
 
-    if saved_count:
-        service = getattr(request.app.state, "history_bank_service", None)
-        if service is not None and hasattr(service, "invalidate_cache"):
-            service.invalidate_cache()
+    service = getattr(request.app.state, "history_bank_service", None)
+    if saved_count and service is not None and hasattr(service, "invalidate_cache"):
+        service.invalidate_cache()
 
     if saved_count:
         message = f"已上传 {saved_count} 份历史题库 PDF。"
@@ -237,12 +203,7 @@ async def upload_history_bank(
     if skipped_names:
         message = f"{message} 已跳过非 PDF 文件：{', '.join(skipped_names)}。"
 
-    return await history_bank(
-        request,
-        refresh=False,
-        message=message,
-        message_type=message_type,
-    )
+    return await history_bank(request, refresh=False, message=message, message_type=message_type)
 
 
 @router.post("/history-bank/delete", response_class=HTMLResponse)
@@ -252,7 +213,9 @@ async def delete_history_bank_file(
     subject: str = Form(""),
     q: str = Form(""),
 ) -> HTMLResponse:
-    history_bank_dir = ensure_directory(getattr(request.app.state, "history_bank_dir", BASE_DIR / "data" / "datasets" / "history_bank"))
+    history_bank_dir = ensure_directory(
+        getattr(request.app.state, "history_bank_dir", BASE_DIR / "data" / "datasets" / "history_bank")
+    )
     try:
         deleted_path = _resolve_history_bank_pdf_path(history_bank_dir, relative_path)
         deleted_path.unlink()
@@ -265,14 +228,7 @@ async def delete_history_bank_file(
         message = str(exc)
         message_type = "error"
 
-    return await history_bank(
-        request,
-        refresh=False,
-        subject=subject,
-        q=q,
-        message=message,
-        message_type=message_type,
-    )
+    return await history_bank(request, refresh=False, subject=subject, q=q, message=message, message_type=message_type)
 
 
 @router.post("/history-bank/rebuild")
@@ -288,8 +244,7 @@ async def get_history_bank_job(request: Request, job_id: str) -> JSONResponse:
     job_store = _get_history_bank_job_store(request)
     job = job_store.get(job_id)
     if job is None:
-        review_store = _get_review_store(request)
-        persisted_job = review_store.get_history_bank_job(job_id)
+        persisted_job = _get_review_store(request).get_history_bank_job(job_id)
         if persisted_job is not None:
             return JSONResponse(persisted_job)
         raise HTTPException(status_code=404, detail="历史题库任务不存在。")
@@ -310,6 +265,19 @@ async def review(
         "teacher_id": teacher_id.strip(),
         "subject": subject,
     }
+    subject_options = _get_upload_subject_options(request)
+    subject_values = {value for value, _label in subject_options}
+    if subject not in subject_values:
+        form_data["subject"] = ALL_SUBJECT_VALUE
+        return render_index(
+            request,
+            form_data=form_data,
+            message="请选择历史库中已有的科目，或使用全科目匹配。",
+            message_type="error",
+            status_code=400,
+        )
+    selected_subject = "" if subject == ALL_SUBJECT_VALUE else subject
+    subject_label = ALL_SUBJECT_LABEL if subject == ALL_SUBJECT_VALUE else subject
 
     if not form_data["teacher_name"] or not form_data["teacher_id"]:
         return render_index(
@@ -339,8 +307,6 @@ async def review(
         )
 
     processing_dir = create_processing_dir(request.app.state.temp_dir)
-    saved_a: Path | None = None
-    saved_b: Path | None = None
 
     try:
         saved_a = await save_upload_file(paper_a, processing_dir, "paper_a")
@@ -350,17 +316,16 @@ async def review(
             UploadedPaper(
                 paper_id="A",
                 filename=paper_a.filename or saved_a.name,
-                subject=subject,
+                subject=selected_subject,
                 temp_path=str(saved_a),
             )
         ]
-
         if saved_b and paper_b:
             uploaded_papers.append(
                 UploadedPaper(
                     paper_id="B",
                     filename=paper_b.filename or saved_b.name,
-                    subject=subject,
+                    subject=selected_subject,
                     temp_path=str(saved_b),
                 )
             )
@@ -385,111 +350,44 @@ async def review(
                     "load_error": str(exc),
                 }
 
-        agent_timeout = get_agent_timeout()
-        coze_service = CozeService(timeout=agent_timeout)
         ocr_provider = build_ocr_provider_from_env()
-        enable_agent_compare = is_enabled_env("ENABLE_AGENT_COMPARE", default=False)
-        enable_agent_spellcheck = is_enabled_env("ENABLE_AGENT_SPELLCHECK", default=False)
-        dual_run_service = DualRunReviewService(
-            code_pipeline=ReviewPipeline(
-                pipeline_name="代码版",
-                extraction_provider=RoutedDocumentParser(
-                    pdf_parser=RoutedPdfParser(ocr_provider=ocr_provider),
-                ),
-                split_provider=RuleQuestionSplitter(),
-                compare_provider=CodeSimilarityComparator(),
-                spellcheck_provider=LocalSpellcheckProvider(),
-            ),
-            agent_pipeline=ReviewPipeline(
-                pipeline_name="Coze 智能体版",
-                extraction_provider=AgentPdfParser(
-                    fallback_provider=RoutedDocumentParser(
-                        pdf_parser=RoutedPdfParser(ocr_provider=ocr_provider),
-                    ),
-                ),
-                split_provider=AgentQuestionSplitter(coze_service=coze_service),
-                compare_provider=(
-                    AgentSimilarityComparator(coze_service=coze_service)
-                    if enable_agent_compare
-                    else SkippedAgentSimilarityComparator()
-                ),
-                spellcheck_provider=(
-                    CozeSpellcheckProvider(coze_service=coze_service)
-                    if enable_agent_spellcheck
-                    else SkippedCozeSpellcheckProvider()
-                ),
-            ),
-            agent_timeout=agent_timeout,
+        pipeline = ReviewPipeline(
+            pipeline_name="代码流",
+            extraction_provider=RoutedDocumentParser(pdf_parser=RoutedPdfParser(ocr_provider=ocr_provider)),
+            split_provider=RuleQuestionSplitter(),
+            compare_provider=CodeSimilarityComparator(),
+            spellcheck_provider=LocalSpellcheckProvider(),
         )
-        if is_enabled_env("ENABLE_ASYNC_AGENT", default=True):
-            code_run_result = dual_run_service.code_pipeline.run(
-                uploaded_papers,
-                history_questions=history_questions,
-                history_bank_summary=history_bank_summary,
-            )
-            agent_job_store = _get_agent_job_store(request)
-            agent_job = agent_job_store.submit(
-                agent_pipeline=dual_run_service.agent_pipeline,
-                uploaded_papers=uploaded_papers,
-                history_questions=history_questions,
-                history_bank_summary=history_bank_summary,
-            )
-            agent_run_result = build_agent_pending_result(
-                dual_run_service.agent_pipeline.pipeline_name,
-                code_run_result.uploaded_papers,
-                history_bank_summary=history_bank_summary,
-                job_id=agent_job.job_id,
-            )
-        else:
-            agent_job = None
-            code_run_result, agent_run_result = dual_run_service.run(
-                uploaded_papers,
-                history_questions=history_questions,
-                history_bank_summary=history_bank_summary,
-            )
+        run_result = pipeline.run(
+            uploaded_papers,
+            history_questions=history_questions,
+            history_bank_summary=history_bank_summary,
+        )
 
-        subject_label = next((label for value, label in SUBJECT_OPTIONS if value == subject), subject)
         report_builder = ReportBuilder()
         report = report_builder.build_report(
             teacher_name=form_data["teacher_name"],
             teacher_id=form_data["teacher_id"],
             subject=subject_label,
-            uploaded_papers=code_run_result.uploaded_papers,
-            questions=code_run_result.questions,
-            similarity_matches=code_run_result.similarity_matches,
-            spellcheck_issues=code_run_result.spellcheck_issues,
+            uploaded_papers=run_result.uploaded_papers,
+            questions=run_result.questions,
+            similarity_matches=run_result.similarity_matches,
+            spellcheck_issues=run_result.spellcheck_issues,
         )
-        template_context = report_builder.build_template_context(
-            report,
-            code_run_result=code_run_result,
-            agent_run_result=agent_run_result,
-        )
+        template_context = report_builder.build_template_context(report, code_run_result=run_result)
         _attach_review_persistence(
             request,
             template_context,
             teacher_id=form_data["teacher_id"],
             teacher_name=form_data["teacher_name"],
             subject=subject_label,
-            code_run_result=code_run_result,
+            code_run_result=run_result,
         )
-        if agent_job is not None:
-            template_context["agent_job"] = agent_job.to_summary()
-            template_context.setdefault("export_payload", {})["agent_job"] = agent_job.to_summary()
         _persist_report_snapshot(request, template_context)
 
-        return _render_template(
-            request,
-            "report.html",
-            template_context,
-        )
+        return _render_template(request, "report.html", template_context)
     except (PdfParseError, DocumentParseError) as exc:
-        return render_index(
-            request,
-            form_data=form_data,
-            message=str(exc),
-            message_type="error",
-            status_code=400,
-        )
+        return render_index(request, form_data=form_data, message=str(exc), message_type="error", status_code=400)
     except Exception as exc:
         return render_index(
             request,
@@ -508,9 +406,7 @@ async def update_review_item(request: Request, item_id: str, payload: dict) -> J
     if status not in REVIEW_STATUS_OPTIONS:
         raise HTTPException(status_code=400, detail="无效的复核状态。")
 
-    review_store = getattr(request.app.state, "review_store", None)
-    if review_store is None:
-        review_store = ReviewStore(getattr(request.app.state, "db_path", BASE_DIR / "data" / "echopaper.db"))
+    review_store = _get_review_store(request)
     try:
         updated = review_store.update_item_status(item_id, status)
     except KeyError as exc:
@@ -532,7 +428,6 @@ async def update_review_item(request: Request, item_id: str, payload: dict) -> J
 async def export_report_pdf(request: Request, payload: dict) -> Response:
     pdf_result = build_report_pdf(payload)
     _record_report_export(request, payload, export_format="pdf", file_path=pdf_result.filename)
-
     return Response(
         content=pdf_result.content,
         media_type="application/pdf",
@@ -579,7 +474,7 @@ async def report_snapshots(
             "limit": limit,
             "active_subject": subject,
             "active_keyword": q,
-            "subject_options": SUBJECT_OPTIONS,
+            "subject_options": _get_report_filter_subject_options(request),
         },
     )
 
@@ -590,7 +485,6 @@ async def get_report_snapshot(request: Request, session_id: str) -> JSONResponse
     snapshot = review_store.get_report_snapshot(session_id)
     if snapshot is None:
         raise HTTPException(status_code=404, detail="报告快照不存在。")
-    snapshot = _backfill_snapshot_agent_payload(review_store, snapshot)
     return JSONResponse(snapshot)
 
 
@@ -601,7 +495,6 @@ async def report_snapshot(request: Request, session_id: str) -> HTMLResponse:
     if snapshot is None:
         raise HTTPException(status_code=404, detail="报告快照不存在。")
 
-    snapshot = _backfill_snapshot_agent_payload(review_store, snapshot)
     return _render_template(
         request,
         "report_snapshot.html",
@@ -609,40 +502,6 @@ async def report_snapshot(request: Request, session_id: str) -> HTMLResponse:
             snapshot,
             export_history=review_store.list_export_history(session_id, limit=10),
         ),
-    )
-
-
-@router.get("/api/agent-jobs/{job_id}")
-async def get_agent_job(request: Request, job_id: str) -> JSONResponse:
-    job_store = _get_agent_job_store(request)
-    job = job_store.get(job_id)
-    if job is None:
-        review_store = getattr(request.app.state, "review_store", None)
-        if review_store is None:
-            review_store = ReviewStore(getattr(request.app.state, "db_path", BASE_DIR / "data" / "echopaper.db"))
-        persisted_job = review_store.get_agent_job(job_id)
-        if persisted_job is not None:
-            return JSONResponse(persisted_job)
-        raise HTTPException(status_code=404, detail="Agent 任务不存在。")
-
-    payload = job.to_summary()
-    if job.result is not None:
-        payload["result"] = pipeline_result_summary(job.result)
-        payload["result_payload"] = pipeline_result_payload(job.result)
-    return JSONResponse(payload)
-
-
-@router.get("/agent-jobs", response_class=HTMLResponse)
-async def agent_jobs(request: Request, limit: int = Query(50, ge=1, le=200)) -> HTMLResponse:
-    review_store = _get_review_store(request)
-    jobs = review_store.list_agent_jobs(limit=limit)
-    return _render_template(
-        request,
-        "agent_jobs.html",
-        {
-            "jobs": jobs,
-            "limit": limit,
-        },
     )
 
 
@@ -656,7 +515,6 @@ def _attach_review_persistence(
     code_run_result,
 ) -> None:
     review_store = _get_review_store(request)
-
     paper_by_id = {paper.paper_id: paper for paper in code_run_result.uploaded_papers}
     session_id = review_store.create_session(
         teacher_id=teacher_id,
@@ -695,82 +553,24 @@ def _persist_report_snapshot(request: Request, template_context: dict) -> None:
     export_payload = template_context.get("export_payload")
     if not isinstance(export_payload, dict):
         return
-
     session_id = str(export_payload.get("review_session", {}).get("session_id", "")).strip()
     if not session_id:
         return
-
-    review_store = _get_review_store(request)
-    review_store.upsert_report_snapshot(session_id, export_payload)
+    _get_review_store(request).upsert_report_snapshot(session_id, export_payload)
 
 
 def _record_report_export(request: Request, payload: dict, *, export_format: str, file_path: str) -> None:
     session_id = str(payload.get("review_session", {}).get("session_id", "")).strip()
     if not session_id:
         return
-
-    review_store = getattr(request.app.state, "review_store", None)
-    if review_store is None:
-        review_store = ReviewStore(getattr(request.app.state, "db_path", BASE_DIR / "data" / "echopaper.db"))
     try:
-        review_store.record_export(
+        _get_review_store(request).record_export(
             session_id=session_id,
             export_format=export_format,
             file_path=file_path,
         )
     except Exception:
-        # Export history is helpful bookkeeping; it should not block the file download.
         pass
-
-
-def _backfill_snapshot_agent_payload(review_store: ReviewStore, snapshot: dict) -> dict:
-    payload = snapshot.get("payload", {}) if isinstance(snapshot, dict) else {}
-    if not isinstance(payload, dict):
-        return snapshot
-
-    agent_job = payload.get("agent_job", {})
-    if not isinstance(agent_job, dict):
-        return snapshot
-
-    job_id = str(agent_job.get("job_id", "")).strip()
-    if not job_id:
-        return snapshot
-
-    persisted_job = review_store.get_agent_job(job_id)
-    if persisted_job is None:
-        return snapshot
-
-    changed = False
-    updated_agent_job = dict(agent_job)
-    for key in ("status", "created_at", "updated_at", "pipeline_name", "paper_count", "error", "work_dir", "has_result"):
-        if key in persisted_job and updated_agent_job.get(key) != persisted_job[key]:
-            updated_agent_job[key] = persisted_job[key]
-            changed = True
-    if updated_agent_job != agent_job:
-        payload["agent_job"] = updated_agent_job
-        changed = True
-
-    has_snapshot_payload = bool(payload.get("agent_result_payload"))
-    persisted_payload = persisted_job.get("result_payload")
-    if not has_snapshot_payload and isinstance(persisted_payload, dict) and persisted_payload:
-        payload["agent_result_payload"] = persisted_payload
-        changed = True
-
-    session_id = str(snapshot.get("session_id", "")).strip()
-    if changed and session_id:
-        review_store.upsert_report_snapshot(session_id, payload)
-        snapshot = review_store.get_report_snapshot(session_id) or snapshot
-    return snapshot
-
-
-def _get_review_store(request: Request) -> ReviewStore:
-    review_store = getattr(request.app.state, "review_store", None)
-    if review_store is not None:
-        return review_store
-
-    review_store = ReviewStore(getattr(request.app.state, "db_path", BASE_DIR / "data" / "echopaper.db"))
-    request.app.state.review_store = review_store
-    return review_store
 
 
 def _build_report_snapshot_context(snapshot: dict, *, export_history: list[dict] | None = None) -> dict:
@@ -779,12 +579,10 @@ def _build_report_snapshot_context(snapshot: dict, *, export_history: list[dict]
     dashboard = report.get("dashboard", {}) if isinstance(report, dict) else {}
     duplicate = payload.get("duplicate_comparison", {}) if isinstance(payload, dict) else {}
     spellcheck = payload.get("spellcheck_comparison", {}) if isinstance(payload, dict) else {}
-    agent_job = payload.get("agent_job", {}) if isinstance(payload, dict) else {}
-    agent_payload = payload.get("agent_result_payload", {}) if isinstance(payload, dict) else {}
     duplicate_rows = duplicate.get("code_rows", []) if isinstance(duplicate, dict) else []
     spellcheck_rows = spellcheck.get("code_rows", []) if isinstance(spellcheck, dict) else []
     snapshot_navigation = [
-        {"id": "snapshot-overview", "label": "总览", "count": len(uploaded := report.get("uploaded_papers", []) if isinstance(report, dict) else [])},
+        {"id": "snapshot-overview", "label": "总览", "count": len(report.get("uploaded_papers", []) if isinstance(report, dict) else [])},
         {"id": "snapshot-risks", "label": "风险提示", "count": len(payload.get("parse_quality", []) if isinstance(payload, dict) else [])},
         {"id": "snapshot-duplicates", "label": "重复题", "count": len(duplicate_rows)},
         {"id": "snapshot-spellcheck", "label": "错字问题", "count": len(spellcheck_rows)},
@@ -801,26 +599,28 @@ def _build_report_snapshot_context(snapshot: dict, *, export_history: list[dict]
         "dashboard": dashboard,
         "uploaded_papers": report.get("uploaded_papers", []) if isinstance(report, dict) else [],
         "history_bank": payload.get("history_bank", {}) if isinstance(payload, dict) else {},
-        "dual_run_sections": payload.get("dual_run_sections", []) if isinstance(payload, dict) else [],
         "question_quality": payload.get("question_quality", []) if isinstance(payload, dict) else [],
         "duplicate_summary": duplicate.get("summary", {}) if isinstance(duplicate, dict) else {},
         "duplicate_rows": duplicate_rows,
         "spellcheck_summary": spellcheck.get("summary", {}) if isinstance(spellcheck, dict) else {},
         "spellcheck_rows": spellcheck_rows,
-        "agent_job": agent_job,
-        "agent_payload": agent_payload,
-        "agent_questions": agent_payload.get("questions", []) if isinstance(agent_payload, dict) else [],
-        "agent_matches": agent_payload.get("similarity_matches", []) if isinstance(agent_payload, dict) else [],
-        "agent_issues": agent_payload.get("spellcheck_issues", []) if isinstance(agent_payload, dict) else [],
         "snapshot_navigation": snapshot_navigation,
     }
+
+
+def _get_review_store(request: Request) -> ReviewStore:
+    review_store = getattr(request.app.state, "review_store", None)
+    if review_store is not None:
+        return review_store
+    review_store = ReviewStore(getattr(request.app.state, "db_path", BASE_DIR / "data" / "echopaper.db"))
+    request.app.state.review_store = review_store
+    return review_store
 
 
 def _get_history_bank_service(request: Request) -> HistoryBankService:
     service = getattr(request.app.state, "history_bank_service", None)
     if service is not None:
         return service
-
     history_bank_dir = getattr(request.app.state, "history_bank_dir", BASE_DIR / "data" / "datasets" / "history_bank")
     service = HistoryBankService(
         history_bank_dir,
@@ -835,24 +635,75 @@ def _get_history_bank_job_store(request: Request) -> HistoryBankRefreshJobStore:
     store = getattr(request.app.state, "history_bank_job_store", None)
     if store is not None:
         return store
-
     store = HistoryBankRefreshJobStore(review_store=_get_review_store(request))
     request.app.state.history_bank_job_store = store
     return store
 
 
-def _get_agent_job_store(request: Request) -> AgentJobStore:
-    store = getattr(request.app.state, "agent_job_store", None)
-    if store is not None:
-        return store
+def _get_upload_subject_options(request: Request) -> list[tuple[str, str]]:
+    subjects = _get_history_bank_subjects(request)
+    options = [(subject, subject) for subject in subjects] or list(LEGACY_SUBJECT_OPTIONS)
+    return [(ALL_SUBJECT_VALUE, ALL_SUBJECT_LABEL), *options]
 
-    agent_job_dir = ensure_directory(getattr(request.app.state, "agent_job_dir", BASE_DIR / "data" / "agent_jobs"))
-    review_store = getattr(request.app.state, "review_store", None)
-    if review_store is None:
-        review_store = ReviewStore(getattr(request.app.state, "db_path", BASE_DIR / "data" / "echopaper.db"))
-    store = AgentJobStore(agent_job_dir, review_store=review_store)
-    request.app.state.agent_job_store = store
-    return store
+
+def _get_report_filter_subject_options(request: Request) -> list[tuple[str, str]]:
+    subjects = _get_history_bank_subjects(request)
+    options = [(ALL_SUBJECT_LABEL, ALL_SUBJECT_LABEL)]
+    options.extend((subject, subject) for subject in subjects)
+    if len(options) == 1:
+        options.extend(LEGACY_SUBJECT_OPTIONS)
+    return options
+
+
+def _get_history_bank_subjects(request: Request) -> list[str]:
+    history_bank_dir = Path(getattr(request.app.state, "history_bank_dir", BASE_DIR / "data" / "datasets" / "history_bank"))
+    subjects = _list_history_subject_folders(history_bank_dir)
+    if subjects:
+        return subjects
+    service = getattr(request.app.state, "history_bank_service", None)
+    if service is None:
+        return []
+    try:
+        snapshot = (
+            service.get_cached_or_directory_summary()
+            if hasattr(service, "get_cached_or_directory_summary")
+            else service.get_snapshot(force_refresh=False)
+        )
+        summary = snapshot.filtered_summary() if hasattr(snapshot, "filtered_summary") else snapshot.to_summary()
+    except Exception:
+        return []
+    values = [
+        str(subject).strip()
+        for subject in summary.get("subjects", [])
+        if str(subject).strip() and str(subject).strip().lower() != "unknown"
+    ]
+    return _dedupe_sorted_subjects(values)
+
+
+def _list_history_subject_folders(history_bank_dir: Path) -> list[str]:
+    roots = [path for path in (history_bank_dir / "txt", history_bank_dir / "pdf") if path.exists()]
+    if not roots and history_bank_dir.exists():
+        roots = [history_bank_dir]
+
+    subjects: list[str] = []
+    for root in roots:
+        try:
+            children = list(root.iterdir())
+        except OSError:
+            continue
+        for child in children:
+            if child.is_dir():
+                name = child.name.strip()
+                if name and name.lower() not in GENERIC_HISTORY_PARENT_NAMES:
+                    subjects.append(name)
+    return _dedupe_sorted_subjects(subjects)
+
+
+def _dedupe_sorted_subjects(values: list[str]) -> list[str]:
+    by_key: dict[str, str] = {}
+    for value in values:
+        by_key.setdefault(value.casefold(), value)
+    return sorted(by_key.values(), key=lambda item: item.casefold())
 
 
 async def _save_history_bank_upload(upload: UploadFile, destination_dir: Path) -> Path:
@@ -873,7 +724,6 @@ def _unique_history_bank_path(destination_dir: Path, filename: str) -> Path:
     candidate = destination_dir / safe_name
     if not candidate.exists():
         return candidate
-
     stem = candidate.stem
     suffix = candidate.suffix or ".pdf"
     index = 2
@@ -890,7 +740,7 @@ def _safe_history_filename(filename: str) -> str:
     suffix = Path(name).suffix.lower() or ".pdf"
     if suffix != ".pdf":
         suffix = ".pdf"
-    safe_stem = "".join(char if char.isalnum() or char in {"-", "_", " ", "+", "(", ")", "（", "）"} else "_" for char in stem)
+    safe_stem = "".join(char if char.isalnum() or char in {"-", "_", " ", "+", "(", ")"} else "_" for char in stem)
     safe_stem = safe_stem.strip(" ._") or "history"
     return f"{safe_stem}{suffix}"
 

@@ -2,7 +2,6 @@
   <div class="section-head">
     <div>
       <h2>错字漏字清单</h2>
-      <p>主表展示代码版结果，并标注当前 Agent 对照状态。</p>
     </div>
     <button type="button" class="section-toggle" data-toggle-section="section-spellcheck-rows">展开明细</button>
   </div>
@@ -18,8 +17,6 @@
           <th>问题类型</th>
           <th>疑似问题</th>
           <th>修改建议</th>
-          <th>对照状态</th>
-          <th>说明</th>
         </tr>
       </thead>
       <tbody>
@@ -30,54 +27,15 @@
           <td>{{ row.issue_type }}</td>
           <td>{{ row.issue_text }}</td>
           <td>{{ row.suggestion }}</td>
-          <td><span class="badge {% if row.compare_status == '一致' %}type{% else %}suspect{% endif %}">{{ row.compare_status }}</span></td>
-          <td>{{ row.compare_note }}</td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
   {% else %}
-  {% with message="代码版当前未检测到明显错字、标点或重复字问题。" %}
+  {% with message="暂无错字问题。" %}
   {% include 'partials/shared/empty_state.html' %}
   {% endwith %}
-  {% endif %}
-
-  {% if agent_only_spellcheck_rows %}
-  <div class="section" style="margin-top: 16px;">
-    <div class="section-head">
-      <div>
-        <h3>Agent 独有错字发现</h3>
-        <p>这些问题未出现在代码版结果中，仅供当前页面对照参考。</p>
-      </div>
-    </div>
-    <div class="table-shell">
-      <table>
-        <thead>
-          <tr>
-            <th>来源</th>
-            <th>题号</th>
-            <th>问题类型</th>
-            <th>疑似问题</th>
-            <th>修改建议</th>
-            <th>状态</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for row in agent_only_spellcheck_rows %}
-          <tr>
-            <td>{{ row.paper_label }}</td>
-            <td>{{ row.question_no }}</td>
-            <td>{{ row.issue_type }}</td>
-            <td>{{ row.issue_text }}</td>
-            <td>{{ row.suggestion }}</td>
-            <td><span class="badge agent">{{ row.compare_status }}</span></td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  </div>
   {% endif %}
   </div>
 </section>

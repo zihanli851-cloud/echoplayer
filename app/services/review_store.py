@@ -73,23 +73,6 @@ class ReviewStore:
             )
             connection.execute(
                 """
-                CREATE TABLE IF NOT EXISTS agent_jobs (
-                    job_id TEXT PRIMARY KEY,
-                    status TEXT NOT NULL,
-                    created_at TEXT NOT NULL,
-                    updated_at TEXT NOT NULL,
-                    pipeline_name TEXT NOT NULL,
-                    paper_count INTEGER NOT NULL,
-                    error TEXT,
-                    work_dir TEXT,
-                    has_result INTEGER NOT NULL DEFAULT 0,
-                    result_summary_json TEXT,
-                    result_payload_json TEXT
-                )
-                """
-            )
-            connection.execute(
-                """
                 CREATE TABLE IF NOT EXISTS history_bank_jobs (
                     job_id TEXT PRIMARY KEY,
                     status TEXT NOT NULL,
@@ -101,7 +84,6 @@ class ReviewStore:
                 )
                 """
             )
-            _ensure_column(connection, "agent_jobs", "result_payload_json", "TEXT")
             connection.commit()
 
     def create_session(
@@ -342,88 +324,6 @@ class ReviewStore:
         self.upsert_report_snapshot(session_id, payload)
         return True
 
-    def upsert_agent_job_summary(
-        self,
-        summary: dict,
-        *,
-        result_summary: dict | None = None,
-        result_payload: dict | None = None,
-    ) -> None:
-        """Persist an Agent background job summary for lookup after process memory is lost."""
-
-        result_json = json.dumps(result_summary, ensure_ascii=False) if result_summary else None
-        payload_json = json.dumps(result_payload, ensure_ascii=False) if result_payload else None
-        with sqlite3.connect(self.db_path) as connection:
-            connection.execute(
-                """
-                INSERT INTO agent_jobs (
-                    job_id, status, created_at, updated_at, pipeline_name, paper_count,
-                    error, work_dir, has_result, result_summary_json, result_payload_json
-                )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT(job_id) DO UPDATE SET
-                    status = excluded.status,
-                    updated_at = excluded.updated_at,
-                    pipeline_name = excluded.pipeline_name,
-                    paper_count = excluded.paper_count,
-                    error = excluded.error,
-                    work_dir = excluded.work_dir,
-                    has_result = excluded.has_result,
-                    result_summary_json = excluded.result_summary_json,
-                    result_payload_json = excluded.result_payload_json
-                """,
-                (
-                    str(summary["job_id"]),
-                    str(summary["status"]),
-                    str(summary["created_at"]),
-                    str(summary["updated_at"]),
-                    str(summary["pipeline_name"]),
-                    int(summary.get("paper_count", 0)),
-                    str(summary.get("error", "")),
-                    str(summary.get("work_dir", "")),
-                    1 if bool(summary.get("has_result")) else 0,
-                    result_json,
-                    payload_json,
-                ),
-            )
-            connection.commit()
-
-    def get_agent_job(self, job_id: str) -> dict | None:
-        with sqlite3.connect(self.db_path) as connection:
-            connection.row_factory = sqlite3.Row
-            row = connection.execute(
-                """
-                SELECT job_id, status, created_at, updated_at, pipeline_name, paper_count,
-                       error, work_dir, has_result, result_summary_json, result_payload_json
-                FROM agent_jobs
-                WHERE job_id = ?
-                """,
-                (job_id,),
-            ).fetchone()
-        if row is None:
-            return None
-
-        return _decode_agent_job_row(dict(row))
-
-    def list_agent_jobs(self, *, limit: int = 50) -> list[dict]:
-        """Return recent Agent jobs from SQLite for management/list pages."""
-
-        limit = max(1, min(int(limit or 50), 200))
-        with sqlite3.connect(self.db_path) as connection:
-            connection.row_factory = sqlite3.Row
-            rows = connection.execute(
-                """
-                SELECT job_id, status, created_at, updated_at, pipeline_name, paper_count,
-                       error, work_dir, has_result, result_summary_json, result_payload_json
-                FROM agent_jobs
-                ORDER BY updated_at DESC, job_id DESC
-                LIMIT ?
-                """,
-                (limit,),
-            ).fetchall()
-
-        return [_decode_agent_job_row(dict(row)) for row in rows]
-
     def upsert_history_bank_job_summary(
         self,
         summary: dict,
@@ -507,24 +407,6 @@ def _now() -> str:
     return datetime.now().isoformat(timespec="seconds")
 
 
-def _ensure_column(connection: sqlite3.Connection, table_name: str, column_name: str, column_type: str) -> None:
-    columns = {row[1] for row in connection.execute(f"PRAGMA table_info({table_name})").fetchall()}
-    if column_name not in columns:
-        connection.execute(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type}")
-
-
-def _decode_agent_job_row(payload: dict) -> dict:
-    payload["paper_count"] = int(payload["paper_count"])
-    payload["has_result"] = bool(payload["has_result"])
-    result_summary_json = payload.pop("result_summary_json", None)
-    if result_summary_json:
-        payload["result"] = json.loads(result_summary_json)
-    result_payload_json = payload.pop("result_payload_json", None)
-    if result_payload_json:
-        payload["result_payload"] = json.loads(result_payload_json)
-    return payload
-
-
 def _build_report_snapshot_summary(row: dict) -> dict:
     try:
         payload = json.loads(row.get("payload_json") or "{}")
@@ -554,7 +436,6 @@ def _build_report_snapshot_summary(row: dict) -> dict:
         "pending_review_count": len(
             [row for row in duplicate_rows if isinstance(row, dict) and row.get("review_status", "待确认") == "待确认"]
         ),
-        "agent_job_id": str(payload.get("agent_job", {}).get("job_id", "")) if isinstance(payload.get("agent_job", {}), dict) else "",
         "export_count": 0,
         "last_exported_at": "",
         "last_export_format": "",
@@ -588,7 +469,7 @@ def _filter_report_snapshot_summaries(summaries: list[dict], *, subject: str = "
             for item in filtered
             if any(
                 keyword in str(item.get(field, "")).lower()
-                for field in ("session_id", "teacher_id", "teacher_name", "subject", "agent_job_id")
+                for field in ("session_id", "teacher_id", "teacher_name", "subject")
             )
         ]
     return filtered

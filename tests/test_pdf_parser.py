@@ -1,22 +1,11 @@
+from app.services.ocr import OcrError, OcrProvider
 from app.services.pdf_parser import (
-    AgentPdfParser,
     PdfTextSnapshot,
     RoutedPdfParser,
-    TextExtractionProvider,
     _build_page_text_with_image_placeholders,
     _build_parser_note,
 )
-from app.services.ocr import OcrError, OcrProvider
 import app.services.pdf_parser as pdf_parser_module
-
-
-class FakeProvider(TextExtractionProvider):
-    provider_name = "fake_provider"
-    provider_label = "Fake Provider"
-    provider_note = "本地解析提示。"
-
-    def extract(self, pdf_path):
-        return "1. 第一题", 1
 
 
 class FakeOcrProvider(OcrProvider):
@@ -57,14 +46,9 @@ def test_build_page_text_with_image_placeholders_keeps_image_only_page() -> None
 
 
 def test_build_parser_note_marks_text_pdf() -> None:
-    snapshot = PdfTextSnapshot(
-        text="1. 第一题内容",
-        page_count=1,
-        text_char_count=20,
-        image_count=0,
-    )
+    snapshot = PdfTextSnapshot(text="1. 第一题内容", page_count=1, text_char_count=20, image_count=0)
 
-    assert _build_parser_note(snapshot, ocr_threshold=50) == "该 PDF 可直接提取文字。"
+    assert _build_parser_note(snapshot, ocr_threshold=50) == "该 PDF 可直接提取文本。"
 
 
 def test_build_parser_note_marks_image_rich_pdf_as_ocr_candidate() -> None:
@@ -95,17 +79,6 @@ def test_build_parser_note_marks_image_only_pdf_without_ocr_claim() -> None:
     assert "需要 OCR" in note
 
 
-def test_agent_pdf_parser_keeps_fallback_parser_note() -> None:
-    parser = AgentPdfParser(fallback_provider=FakeProvider())
-
-    text, page_count = parser.extract("fake.pdf")
-
-    assert text == "1. 第一题"
-    assert page_count == 1
-    assert "Agent 流程先复用本地 PDF 解析" in parser.provider_note
-    assert "本地解析提示" in parser.provider_note
-
-
 def test_routed_pdf_parser_accumulates_notes_for_multiple_papers(monkeypatch, tmp_path) -> None:
     snapshots = [
         PdfTextSnapshot(text="1. 第一题", page_count=1, text_char_count=20, image_count=0),
@@ -121,7 +94,7 @@ def test_routed_pdf_parser_accumulates_notes_for_multiple_papers(monkeypatch, tm
     parser.extract(tmp_path / "a.pdf")
     parser.extract(tmp_path / "b.pdf")
 
-    assert "a.pdf: 该 PDF 可直接提取文字" in parser.provider_note
+    assert "a.pdf: 该 PDF 可直接提取文本" in parser.provider_note
     assert "b.pdf: 该 PDF 未提取到文字" in parser.provider_note
 
 
@@ -147,7 +120,6 @@ def test_routed_pdf_parser_appends_ocr_text_for_scan_candidate(monkeypatch, tmp_
     assert "OCR 识别出的题干" in text
     assert ocr_provider.calls == 1
     assert "OCR 已识别图片内文字" in parser.provider_note
-    assert "OCR 未接入" not in parser.provider_note
 
 
 def test_routed_pdf_parser_reports_missing_ocr_provider(monkeypatch, tmp_path) -> None:

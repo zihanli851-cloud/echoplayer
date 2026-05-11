@@ -5,19 +5,13 @@ from difflib import SequenceMatcher
 from html import escape
 import re
 
-from app.models.schemas import (
-    DualRunSectionComparison,
-    ReportData,
-    SimilarityMatch,
-    SpellcheckIssue,
-    UploadedPaper,
-)
-from app.services.dual_run import PipelineRunResult
+from app.models.schemas import ReportData, SimilarityMatch, SpellcheckIssue, UploadedPaper
+from app.services.review_pipeline import PipelineRunResult
 
 
 IMAGE_PLACEHOLDER_PATTERN = re.compile(r"\[IMAGE [^\]]+\]")
 OCR_TEXT_MARKER_PATTERN = re.compile(r"\[OCR_TEXT\]")
-FORMULA_TOKEN_PATTERN = re.compile(r"(∑|∫|√|∞|≈|≠|≤|≥|∈|∂|λ|μ|σ|π|Δ|β|α|→|←|↔|±)")
+FORMULA_TOKEN_PATTERN = re.compile(r"(渭|蟽|蟺|螖|尾|伪|卤)")
 EQUATION_PATTERN = re.compile(r"[A-Za-z]\s*=\s*[^=\n]+")
 FRACTION_PATTERN = re.compile(r"\b\d+\s*/\s*\d+\b")
 
@@ -27,18 +21,13 @@ CHART_KEYWORDS = (
     "图中",
     "图示",
     "图表",
-    "示意图",
     "坐标图",
-    "函数图像",
     "折线图",
     "柱状图",
-    "饼图",
     "流程图",
     "结构图",
     "电路图",
     "表格",
-    "见表",
-    "如下表",
     "统计表",
 )
 
@@ -52,9 +41,7 @@ FORMULA_KEYWORDS = (
     "极限",
     "矩阵",
     "向量",
-    "概率密度",
-    "标准差",
-    "化学方程式",
+    "概率",
 )
 
 
@@ -105,10 +92,10 @@ class ReportBuilder:
         return {
             "paper_a_question_count": question_counter.get("A", 0),
             "paper_b_question_count": question_counter.get("B", 0),
-            "paper_a_internal_high": count_matches("within_paper_a", "高度重复"),
-            "paper_b_internal_high": count_matches("within_paper_b", "高度重复"),
-            "cross_paper_high": count_matches("cross_paper", "高度重复"),
-            "history_high": count_matches("history_bank", "高度重复"),
+            "paper_a_internal_high": count_matches("within_paper_a", "高强度重复"),
+            "paper_b_internal_high": count_matches("within_paper_b", "高强度重复"),
+            "cross_paper_high": count_matches("cross_paper", "高强度重复"),
+            "history_high": count_matches("history_bank", "高强度重复"),
             "history_match_total": count_matches("history_bank"),
             "same_source_total": len([match for match in similarity_matches if self._is_same_source_match(match)]),
             "suspected_duplicate_total": len(
@@ -125,114 +112,42 @@ class ReportBuilder:
         report: ReportData,
         *,
         code_run_result: PipelineRunResult | None = None,
-        agent_run_result: PipelineRunResult | None = None,
     ) -> dict:
         dashboard_cards = self._build_dashboard_cards(report.dashboard)
-
-        if not code_run_result or not agent_run_result:
-            question_quality_rows = self.build_question_quality_rows(report.questions)
-            parse_quality_rows = self.build_parse_quality_rows(report.uploaded_papers)
-            complex_question_rows = self.build_complex_question_rows(report.questions, report.uploaded_papers)
-            same_source_rows = self.build_same_source_rows(report.similarity_matches)
-            risk_navigation = self.build_risk_navigation(
-                parse_quality_rows=parse_quality_rows,
-                complex_question_rows=complex_question_rows,
-                question_quality_rows=question_quality_rows,
-                same_source_rows=same_source_rows,
-                duplicate_rows=self._build_basic_duplicate_rows(report.similarity_matches),
-                spellcheck_rows=self._build_basic_spellcheck_rows(report.spellcheck_issues),
-                dual_run_sections=[],
-            )
-            basic_duplicate_rows = self.sort_duplicate_rows(self._build_basic_duplicate_rows(report.similarity_matches))
-            basic_same_source_rows = self.sort_same_source_rows(same_source_rows)
-            return {
-                "report": report,
-                "dashboard_cards": dashboard_cards,
-                "spellcheck_rows": self._build_basic_spellcheck_rows(report.spellcheck_issues),
-                "duplicate_rows": basic_duplicate_rows,
-                "same_source_rows": basic_same_source_rows,
-                "question_quality_rows": question_quality_rows,
-                "parse_quality_rows": parse_quality_rows,
-                "complex_question_rows": complex_question_rows,
-                "dual_run_sections": [],
-                "agent_dashboard_cards": [],
-                "agent_only_spellcheck_rows": [],
-                "agent_only_duplicate_rows": [],
-                "history_bank_summary": {},
-                "risk_navigation": risk_navigation,
-                "report_filters": self.build_report_filters(),
-                "pending_review_summary": self.build_pending_review_summary(
-                    duplicate_rows=basic_duplicate_rows,
-                    same_source_rows=basic_same_source_rows,
-                ),
-                "export_payload": {
-                    "report": report.model_dump(mode="json"),
-                    "same_source_matches": same_source_rows,
-                    "question_quality": question_quality_rows,
-                    "parse_quality": parse_quality_rows,
-                    "complex_question_quality": complex_question_rows,
-                },
-            }
-
-        dual_run_sections = self.build_dual_run_sections(code_run_result, agent_run_result)
-        spellcheck_context = self.build_spellcheck_comparison(
-            code_run_result.spellcheck_issues,
-            agent_run_result.spellcheck_issues,
-        )
-        duplicate_context = self.build_duplicate_comparison(
-            code_run_result.similarity_matches,
-            agent_run_result.similarity_matches,
-        )
-        parse_quality_rows = self.build_parse_quality_rows(code_run_result.uploaded_papers)
-        question_quality_rows = self.build_question_quality_rows(code_run_result.questions)
-        complex_question_rows = self.build_complex_question_rows(
-            code_run_result.questions,
-            code_run_result.uploaded_papers,
-        )
-        same_source_rows = self.build_same_source_rows(code_run_result.similarity_matches)
-        dual_run_section_payloads = [section.model_dump() for section in dual_run_sections]
+        question_quality_rows = self.build_question_quality_rows(report.questions)
+        parse_quality_rows = self.build_parse_quality_rows(report.uploaded_papers)
+        complex_question_rows = self.build_complex_question_rows(report.questions, report.uploaded_papers)
+        same_source_rows = self.build_same_source_rows(report.similarity_matches)
+        duplicate_rows = self.sort_duplicate_rows(self._build_basic_duplicate_rows(report.similarity_matches))
+        same_source_rows = self.sort_same_source_rows(same_source_rows)
         risk_navigation = self.build_risk_navigation(
             parse_quality_rows=parse_quality_rows,
             complex_question_rows=complex_question_rows,
             question_quality_rows=question_quality_rows,
             same_source_rows=same_source_rows,
-            duplicate_rows=duplicate_context["code_rows"],
-            spellcheck_rows=spellcheck_context["code_rows"],
-            dual_run_sections=dual_run_section_payloads,
+            duplicate_rows=duplicate_rows,
+            spellcheck_rows=self._build_basic_spellcheck_rows(report.spellcheck_issues),
         )
-        sorted_duplicate_rows = self.sort_duplicate_rows(duplicate_context["code_rows"])
-        sorted_same_source_rows = self.sort_same_source_rows(same_source_rows)
 
         return {
             "report": report,
             "dashboard_cards": dashboard_cards,
-            "agent_dashboard_cards": self._build_agent_dashboard_cards(
-                spellcheck_context,
-                duplicate_context,
-            ),
-            "spellcheck_rows": spellcheck_context["code_rows"],
-            "agent_only_spellcheck_rows": spellcheck_context["agent_only_rows"],
-            "duplicate_rows": sorted_duplicate_rows,
-            "agent_only_duplicate_rows": duplicate_context["agent_only_rows"],
-            "same_source_rows": sorted_same_source_rows,
-            "parse_quality_rows": parse_quality_rows,
+            "spellcheck_rows": self._build_basic_spellcheck_rows(report.spellcheck_issues),
+            "duplicate_rows": duplicate_rows,
+            "same_source_rows": same_source_rows,
             "question_quality_rows": question_quality_rows,
+            "parse_quality_rows": parse_quality_rows,
             "complex_question_rows": complex_question_rows,
-            "dual_run_sections": dual_run_section_payloads,
-            "history_bank_summary": code_run_result.history_bank_summary,
+            "history_bank_summary": code_run_result.history_bank_summary if code_run_result else {},
             "risk_navigation": risk_navigation,
             "report_filters": self.build_report_filters(),
             "pending_review_summary": self.build_pending_review_summary(
-                duplicate_rows=sorted_duplicate_rows,
-                same_source_rows=sorted_same_source_rows,
+                duplicate_rows=duplicate_rows,
+                same_source_rows=same_source_rows,
             ),
             "export_payload": self.build_export_payload(
                 report=report,
-                dual_run_sections=dual_run_sections,
-                spellcheck_context=spellcheck_context,
-                duplicate_context=duplicate_context,
                 code_run_result=code_run_result,
-                agent_run_result=agent_run_result,
             ),
         }
 
@@ -261,51 +176,14 @@ class ReportBuilder:
         same_source_rows: list[dict],
         duplicate_rows: list[dict],
         spellcheck_rows: list[dict],
-        dual_run_sections: list[dict],
     ) -> list[dict]:
         return [
-            {
-                "id": "section-parse-quality",
-                "label": "高风险解析",
-                "count": len([row for row in parse_quality_rows if row.get("risk_level") == "高风险"]),
-                "tone": "high",
-            },
-            {
-                "id": "section-complex-questions",
-                "label": "复杂题复核",
-                "count": len(complex_question_rows),
-                "tone": "suspect",
-            },
-            {
-                "id": "section-question-quality",
-                "label": "低置信度切题",
-                "count": len(question_quality_rows),
-                "tone": "suspect",
-            },
-            {
-                "id": "section-same-source",
-                "label": "疑似原题",
-                "count": len(same_source_rows),
-                "tone": "warn",
-            },
-            {
-                "id": "section-duplicate-rows",
-                "label": "重复题",
-                "count": len(duplicate_rows),
-                "tone": "high",
-            },
-            {
-                "id": "section-spellcheck-rows",
-                "label": "错字问题",
-                "count": len(spellcheck_rows),
-                "tone": "info",
-            },
-            {
-                "id": "section-dual-run",
-                "label": "双链路状态",
-                "count": len([row for row in dual_run_sections if row.get("status") != "一致"]),
-                "tone": "info",
-            },
+            {"id": "section-parse-quality", "label": "解析风险", "count": len(parse_quality_rows), "tone": "high"},
+            {"id": "section-complex-questions", "label": "复杂题复核", "count": len(complex_question_rows), "tone": "suspect"},
+            {"id": "section-question-quality", "label": "低置信度切题", "count": len(question_quality_rows), "tone": "suspect"},
+            {"id": "section-same-source", "label": "疑似同源", "count": len(same_source_rows), "tone": "warn"},
+            {"id": "section-duplicate-rows", "label": "重复题", "count": len(duplicate_rows), "tone": "high"},
+            {"id": "section-spellcheck-rows", "label": "错字问题", "count": len(spellcheck_rows), "tone": "info"},
         ]
 
     def build_pending_review_summary(
@@ -321,23 +199,23 @@ class ReportBuilder:
         if pending_duplicates:
             summary.append(
                 {
-                    "label": "重复题待确认",
+                    "label": "重复题待复核",
                     "count": len(pending_duplicates),
                     "target": "#section-duplicate-rows",
-                    "description": "优先复核高度重复和评分不同的题目对。",
+                    "description": "优先复核高强度重复和评分不同的题目对。",
                     "tone": "high",
-                    "high_count": len([row for row in pending_duplicates if row.get("level") == "高度重复"]),
+                    "high_count": len([row for row in pending_duplicates if row.get("level") == "高强度重复"]),
                 }
             )
         if pending_same_source:
             summary.append(
                 {
-                    "label": "疑似原题待确认",
+                    "label": "疑似同源待确认",
                     "count": len(pending_same_source),
                     "target": "#section-same-source",
                     "description": "优先核查仅改数字、参数或样例数据的同源题。",
                     "tone": "warn",
-                    "high_count": len([row for row in pending_same_source if row.get("same_source_flag") == "疑似原题"]),
+                    "high_count": len([row for row in pending_same_source if row.get("same_source_flag") == "同源题"]),
                 }
             )
         return summary
@@ -350,7 +228,7 @@ class ReportBuilder:
             rows,
             key=lambda row: (
                 0 if row.get("review_status") == "待确认" else 1,
-                0 if row.get("same_source_flag") == "疑似原题" else 1,
+                0 if row.get("same_source_flag") == "同源题" else 1,
                 -float(row.get("template_score") or 0),
                 -float(row.get("score") or 0),
             ),
@@ -388,10 +266,10 @@ class ReportBuilder:
 
             if ocr_attempted and ocr_succeeded:
                 risk_level = "需复核"
-                risk_reason = "已触发 OCR，建议对照原卷检查识别准确性。"
+                risk_reason = "已启用 OCR，建议对照原卷检查识别准确性。"
             elif ocr_attempted and not ocr_succeeded:
                 risk_level = "高风险"
-                risk_reason = "已触发 OCR 但未成功识别，建议直接查看原卷 PDF。"
+                risk_reason = "已启用 OCR 但未成功识别，建议直接查看原卷 PDF。"
             elif image_count > 0:
                 risk_level = "需复核"
                 risk_reason = "试卷包含图片或疑似扫描内容，建议人工复核。"
@@ -434,10 +312,10 @@ class ReportBuilder:
             if image_count > 0:
                 flags.append("图片题")
                 details.append(f"包含 {image_count} 个图片占位符")
-                review_reasons.append("题干包含图片对象占位，需结合原卷核对图片内容。")
+                review_reasons.append("题干包含图片对象占位，需结合原卷核对。")
 
             if OCR_TEXT_MARKER_PATTERN.search(content):
-                flags.append("OCR回填")
+                flags.append("OCR 回填")
                 details.append("包含 OCR 回填文本")
                 review_reasons.append("题干依赖 OCR 回填内容，建议核对识别准确性。")
 
@@ -451,46 +329,37 @@ class ReportBuilder:
             formula_symbol_count = len(FORMULA_TOKEN_PATTERN.findall(content))
             equation_count = len(EQUATION_PATTERN.findall(content))
             fraction_count = len(FRACTION_PATTERN.findall(content))
-            formula_score = len(formula_hits) + formula_symbol_count + equation_count + fraction_count
-            if formula_score >= 2:
+            if formula_hits or formula_symbol_count >= 3 or equation_count >= 2 or fraction_count >= 2:
                 flags.append("复杂公式题")
-                formula_parts: list[str] = []
                 if formula_hits:
-                    formula_parts.append(f"关键词：{_unique_preview(formula_hits)}")
+                    details.append(f"命中公式关键词：{_unique_preview(formula_hits)}")
                 if formula_symbol_count:
-                    formula_parts.append(f"公式符号 {formula_symbol_count} 处")
+                    details.append(f"发现 {formula_symbol_count} 个公式符号")
                 if equation_count:
-                    formula_parts.append(f"等式表达 {equation_count} 处")
+                    details.append(f"发现 {equation_count} 个等式片段")
                 if fraction_count:
-                    formula_parts.append(f"分式表达 {fraction_count} 处")
-                details.append("；".join(formula_parts))
-                review_reasons.append("题干包含较多公式或参数表达，建议回看原卷核对公式排版。")
+                    details.append(f"发现 {fraction_count} 个分数片段")
+                review_reasons.append("题干含有较多公式或数学表达，建议人工复核排版和符号。")
 
             if not flags:
                 continue
 
-            paper = paper_map.get(question.paper_id)
+            detail = "；".join(details) if details else "未提取到更细的复杂度提示。"
             review_level = _complex_review_level(flags)
-            recommendation = "建议查看原卷 PDF"
-            if "OCR回填" in flags and "图片题" not in flags:
-                recommendation = "建议核对 OCR 回填与原卷"
-
+            source_paper = paper_map.get(question.paper_id)
             rows.append(
                 {
                     "paper_label": f"{question.paper_id} 卷",
+                    "filename": getattr(source_paper, "filename", ""),
                     "question_no": question.question_no,
-                    "question_id": question.question_id,
                     "flags": flags,
                     "flag_summary": " / ".join(flags),
+                    "detail": detail,
                     "review_level": review_level,
-                    "recommendation": recommendation,
                     "reason": "；".join(review_reasons),
-                    "detail": "；".join(details),
-                    "content_preview": content[:180],
-                    "paper_filename": paper.filename if paper else "",
+                    "recommendation": "建议查看原卷 PDF" if source_paper else "建议人工复核",
                 }
             )
-
         return rows
 
     def build_same_source_rows(self, matches: list[SimilarityMatch]) -> list[dict]:
@@ -498,200 +367,60 @@ class ReportBuilder:
         for match in matches:
             if not self._is_same_source_match(match):
                 continue
-            left_html, right_html = highlight_diff(match.source_text, match.target_text)
             rows.append(
                 {
                     "match_id": match.match_id,
                     "comparison_label": comparison_label(match.comparison_type),
+                    "same_source_flag": "同源题",
                     "score": match.similarity_score,
+                    "final_score": match.final_score,
                     "literal_score": match.literal_score,
                     "template_score": match.template_score,
-                    "final_score": match.final_score,
-                    "level": match.level,
-                    "same_source_flag": "同源题" if match.is_same_source_question else "疑似原题",
                     "source_label": format_match_endpoint_label(match, side="source"),
                     "target_label": format_match_endpoint_label(match, side="target"),
-                    "source_html": left_html,
-                    "target_html": right_html,
-                    "review_status": match.review_status,
-                    "review_options": ["待确认", "确认重复", "排除误报"],
                     "reason": self._build_same_source_reason(match),
+                    "review_status": match.review_status,
+                    "compare_status": "同源",
+                    "compare_note": "模板分显著高于字面分，疑似同源题。",
+                    "source_html": escape(match.source_text),
+                    "target_html": escape(match.target_text),
                 }
             )
         return rows
-
-    def build_dual_run_sections(
-        self,
-        code_run_result: PipelineRunResult,
-        agent_run_result: PipelineRunResult,
-    ) -> list[DualRunSectionComparison]:
-        return [
-            self._compare_extraction_section(code_run_result, agent_run_result),
-            self._compare_split_section(code_run_result, agent_run_result),
-            self._compare_duplicate_section(code_run_result, agent_run_result),
-            self._compare_spellcheck_section(code_run_result, agent_run_result),
-        ]
-
-    def build_spellcheck_comparison(
-        self,
-        code_issues: list[SpellcheckIssue],
-        agent_issues: list[SpellcheckIssue],
-    ) -> dict:
-        remaining_agent_issues = list(agent_issues)
-        code_rows: list[dict] = []
-
-        for issue in code_issues:
-            matching_issue = self._pop_matching_spellcheck_issue(issue, remaining_agent_issues)
-            if matching_issue:
-                compare_status = "一致"
-                compare_note = "代码版与 Agent 版都识别到了该问题。"
-            else:
-                compare_status = "代码独有"
-                compare_note = "当前 Agent 结果中未出现该问题。"
-
-            code_rows.append(
-                {
-                    "paper_label": f"{issue.paper_id} 卷",
-                    "question_no": issue.question_no,
-                    "issue_type": issue.issue_type,
-                    "issue_text": issue.issue_text,
-                    "suggestion": issue.suggestion,
-                    "original_preview": issue.original_text[:80],
-                    "confidence": issue.confidence,
-                    "compare_status": compare_status,
-                    "compare_note": compare_note,
-                }
-            )
-
-        agent_only_rows = [
-            {
-                "paper_label": f"{issue.paper_id} 卷",
-                "question_no": issue.question_no,
-                "issue_type": issue.issue_type,
-                "issue_text": issue.issue_text,
-                "suggestion": issue.suggestion,
-                "original_preview": issue.original_text[:80],
-                "compare_status": "Agent 新增",
-                "compare_note": "该问题只在 Agent 结果中出现。",
-            }
-            for issue in remaining_agent_issues
-        ]
-
-        return {
-            "code_rows": code_rows,
-            "agent_only_rows": agent_only_rows,
-            "summary": {
-                "matched": len([row for row in code_rows if row["compare_status"] == "一致"]),
-                "code_only": len([row for row in code_rows if row["compare_status"] == "代码独有"]),
-                "agent_only": len(agent_only_rows),
-            },
-        }
-
-    def build_duplicate_comparison(
-        self,
-        code_matches: list[SimilarityMatch],
-        agent_matches: list[SimilarityMatch],
-    ) -> dict:
-        remaining_agent_matches = list(agent_matches)
-        code_rows: list[dict] = []
-
-        for match in code_matches:
-            if self._is_same_source_match(match):
-                continue
-
-            matching_agent_match = self._pop_matching_similarity_match(match, remaining_agent_matches)
-            compare_status = "代码独有"
-            compare_note = "当前 Agent 结果中未出现该题目对。"
-            agent_score = None
-
-            if matching_agent_match:
-                agent_score = matching_agent_match.similarity_score
-                if self._same_match_level(match, matching_agent_match):
-                    compare_status = "一致"
-                    compare_note = "代码版与 Agent 版对该题目对的判断一致。"
-                else:
-                    compare_status = "评分不同"
-                    compare_note = (
-                        f"代码版相似度 {match.similarity_score}% ，"
-                        f"Agent 版相似度 {matching_agent_match.similarity_score}% 。"
-                    )
-
-            left_html, right_html = highlight_diff(match.source_text, match.target_text)
-            code_rows.append(
-                {
-                    "match_id": match.match_id,
-                    "comparison_label": comparison_label(match.comparison_type),
-                    "score": match.similarity_score,
-                    "agent_score": agent_score,
-                    "level": match.level,
-                    "source_label": format_match_endpoint_label(match, side="source"),
-                    "target_label": format_match_endpoint_label(match, side="target"),
-                    "source_html": left_html,
-                    "target_html": right_html,
-                    "review_status": match.review_status,
-                    "review_options": ["待确认", "确认重复", "排除误报"],
-                    "compare_status": compare_status,
-                    "compare_note": compare_note,
-                }
-            )
-
-        agent_only_rows: list[dict] = []
-        for match in remaining_agent_matches:
-            if self._is_same_source_match(match):
-                continue
-            left_html, right_html = highlight_diff(match.source_text, match.target_text)
-            agent_only_rows.append(
-                {
-                    "match_id": match.match_id,
-                    "comparison_label": comparison_label(match.comparison_type),
-                    "score": match.similarity_score,
-                    "level": match.level,
-                    "source_label": format_match_endpoint_label(match, side="source"),
-                    "target_label": format_match_endpoint_label(match, side="target"),
-                    "source_html": left_html,
-                    "target_html": right_html,
-                    "review_status": match.review_status,
-                    "review_options": ["待确认", "确认重复", "排除误报"],
-                    "compare_status": "Agent 新增",
-                    "compare_note": "该题目对只在 Agent 结果中出现。",
-                }
-            )
-
-        return {
-            "code_rows": code_rows,
-            "agent_only_rows": agent_only_rows,
-            "summary": {
-                "matched": len([row for row in code_rows if row["compare_status"] == "一致"]),
-                "score_diff": len([row for row in code_rows if row["compare_status"] == "评分不同"]),
-                "code_only": len([row for row in code_rows if row["compare_status"] == "代码独有"]),
-                "agent_only": len(agent_only_rows),
-            },
-        }
 
     def build_export_payload(
         self,
         *,
         report: ReportData,
-        dual_run_sections: list[DualRunSectionComparison],
-        spellcheck_context: dict,
-        duplicate_context: dict,
-        code_run_result: PipelineRunResult,
-        agent_run_result: PipelineRunResult,
+        code_run_result: PipelineRunResult | None = None,
     ) -> dict:
+        if code_run_result is None:
+            spellcheck_rows = self._build_basic_spellcheck_rows(report.spellcheck_issues)
+            duplicate_rows = self.sort_duplicate_rows(self._build_basic_duplicate_rows(report.similarity_matches))
+            return {
+                "report": report.model_dump(mode="json"),
+                "duplicate_comparison": self._build_duplicate_payload(duplicate_rows),
+                "spellcheck_comparison": self._build_spellcheck_payload(spellcheck_rows),
+                "same_source_matches": self.build_same_source_rows(report.similarity_matches),
+                "parse_quality": self.build_parse_quality_rows(report.uploaded_papers),
+                "question_quality": self.build_question_quality_rows(report.questions),
+                "complex_question_quality": self.build_complex_question_rows(
+                    report.questions,
+                    report.uploaded_papers,
+                ),
+            }
+
+        spellcheck_rows = self._build_basic_spellcheck_rows(code_run_result.spellcheck_issues)
+        duplicate_rows = self.sort_duplicate_rows(self._build_basic_duplicate_rows(code_run_result.similarity_matches))
         return {
             "report": report.model_dump(mode="json"),
-            "pipelines": {
-                "code": {
-                    "pipeline_name": code_run_result.pipeline_name,
-                    "module_metadata": code_run_result.module_metadata,
-                },
-                "agent": {
-                    "pipeline_name": agent_run_result.pipeline_name,
-                    "module_metadata": agent_run_result.module_metadata,
-                },
+            "pipeline": {
+                "name": code_run_result.pipeline_name,
+                "module_metadata": code_run_result.module_metadata,
             },
             "history_bank": code_run_result.history_bank_summary,
-            "dual_run_sections": [section.model_dump(mode="json") for section in dual_run_sections],
+            "duplicate_comparison": self._build_duplicate_payload(duplicate_rows),
+            "spellcheck_comparison": self._build_spellcheck_payload(spellcheck_rows),
             "same_source_matches": self.build_same_source_rows(code_run_result.similarity_matches),
             "parse_quality": self.build_parse_quality_rows(code_run_result.uploaded_papers),
             "question_quality": self.build_question_quality_rows(code_run_result.questions),
@@ -699,8 +428,24 @@ class ReportBuilder:
                 code_run_result.questions,
                 code_run_result.uploaded_papers,
             ),
-            "spellcheck_comparison": spellcheck_context,
-            "duplicate_comparison": duplicate_context,
+        }
+
+    def _build_duplicate_payload(self, rows: list[dict]) -> dict:
+        return {
+            "summary": {
+                "total": len(rows),
+                "high": len([row for row in rows if row.get("level") == "高强度重复"]),
+                "suspect": len([row for row in rows if row.get("level") == "疑似重复"]),
+            },
+            "code_rows": rows,
+        }
+
+    def _build_spellcheck_payload(self, rows: list[dict]) -> dict:
+        return {
+            "summary": {
+                "total": len(rows),
+            },
+            "code_rows": rows,
         }
 
     def _format_ocr_status(
@@ -713,9 +458,9 @@ class ReportBuilder:
         if image_count <= 0 and not ocr_attempted:
             return "纯文本"
         if ocr_attempted and ocr_succeeded:
-            return "已触发 OCR 并成功"
+            return "已启用 OCR 并成功"
         if ocr_attempted and not ocr_succeeded:
-            return "已触发 OCR 但未成功"
+            return "已启用 OCR 但未成功"
         if image_count > 0:
             return "有图片占位，未做 OCR"
         return "未知"
@@ -723,227 +468,51 @@ class ReportBuilder:
     def _build_dashboard_cards(self, dashboard: dict[str, int]) -> list[dict]:
         return [
             {
-                "label": "A 卷题目数",
+                "label": "A 卷题数",
                 "value": dashboard.get("paper_a_question_count", 0),
                 "hint": "代码版成功切分出的 A 卷题目数量。",
             },
             {
-                "label": "B 卷题目数",
+                "label": "B 卷题数",
                 "value": dashboard.get("paper_b_question_count", 0),
                 "hint": "代码版成功切分出的 B 卷题目数量。",
             },
             {
-                "label": "高度重复",
+                "label": "高强度重复",
                 "value": (
                     dashboard.get("paper_a_internal_high", 0)
                     + dashboard.get("paper_b_internal_high", 0)
                     + dashboard.get("cross_paper_high", 0)
                     + dashboard.get("history_high", 0)
                 ),
-                "hint": "代码版相似度 >= 95 的高风险题目对。",
+                "hint": "相似度 >= 95 的高风险重复题目对。",
             },
             {
                 "label": "疑似重复",
                 "value": dashboard.get("suspected_duplicate_total", 0),
-                "hint": "代码版相似度 85-94 的待复核题目对。",
+                "hint": "相似度 85-94 的待复核题目对。",
             },
             {
-                "label": "疑似原题",
+                "label": "疑似同源",
                 "value": dashboard.get("same_source_total", 0),
-                "hint": "模板分明显高于字面分的疑似原题或同源题。",
+                "hint": "模板分明显高于字面分的同源题或同源题对。",
             },
             {
                 "label": "错字问题",
                 "value": dashboard.get("spellcheck_issue_total", 0),
-                "hint": "代码版命中的错字、标点和重复字问题。",
+                "hint": "命中的错字、标点和重复字问题。",
             },
             {
                 "label": "历史题库命中",
                 "value": dashboard.get("history_match_total", 0),
-                "hint": "上传试卷在 history_bank 中的命中题目对数量。",
+                "hint": "在历史题库中命中的题目对数量。",
             },
             {
                 "label": "待人工确认",
                 "value": dashboard.get("pending_review_total", 0),
-                "hint": "代码版重复明细默认进入人工复核状态。",
+                "hint": "重复题中仍保持待确认状态的项目数。",
             },
         ]
-
-    def _build_agent_dashboard_cards(self, spellcheck_context: dict, duplicate_context: dict) -> list[dict]:
-        return [
-            {
-                "label": "错字结果一致",
-                "value": spellcheck_context["summary"]["matched"],
-                "hint": "代码版与 Agent 版都识别到的问题数。",
-            },
-            {
-                "label": "Agent 错字新增",
-                "value": spellcheck_context["summary"]["agent_only"],
-                "hint": "只在 Agent 结果中出现的错字问题数。",
-            },
-            {
-                "label": "重复结果一致",
-                "value": duplicate_context["summary"]["matched"],
-                "hint": "代码版与 Agent 版都命中的题目对。",
-            },
-            {
-                "label": "重复评分不同",
-                "value": duplicate_context["summary"]["score_diff"],
-                "hint": "两边识别到同一题目对但评分或等级不同。",
-            },
-            {
-                "label": "Agent 重复新增",
-                "value": duplicate_context["summary"]["agent_only"],
-                "hint": "只在 Agent 结果中出现的重复题目对。",
-            },
-            {
-                "label": "代码独有结论",
-                "value": spellcheck_context["summary"]["code_only"] + duplicate_context["summary"]["code_only"],
-                "hint": "当前 Agent 结果中未覆盖的代码版发现数。",
-            },
-        ]
-
-    def _compare_extraction_section(
-        self,
-        code_run_result: PipelineRunResult,
-        agent_run_result: PipelineRunResult,
-    ) -> DualRunSectionComparison:
-        code_result = [
-            {
-                "paper_id": paper.paper_id,
-                "page_count": paper.page_count,
-                "text_length": len(paper.text_content),
-            }
-            for paper in code_run_result.uploaded_papers
-        ]
-        agent_result = [
-            {
-                "paper_id": paper.paper_id,
-                "page_count": paper.page_count,
-                "text_length": len(paper.text_content),
-            }
-            for paper in agent_run_result.uploaded_papers
-        ]
-        status = "一致" if code_result == agent_result else "存在差异"
-        diff_summary = "代码版与 Agent 版提取摘要一致。"
-        provider_note = agent_run_result.module_metadata["extract"].get("provider_note", "")
-        if status != "一致":
-            diff_summary = "两边提取的页数或文本长度不同。"
-        elif provider_note:
-            diff_summary = f"{diff_summary}{provider_note}"
-        return DualRunSectionComparison(
-            module_name="文本提取",
-            code_result=code_result,
-            agent_result=agent_result,
-            status=status,
-            diff_summary=diff_summary,
-        )
-
-    def _compare_split_section(
-        self,
-        code_run_result: PipelineRunResult,
-        agent_run_result: PipelineRunResult,
-    ) -> DualRunSectionComparison:
-        code_result = self._question_summary(code_run_result.questions, uploaded_papers=code_run_result.uploaded_papers)
-        agent_result = self._question_summary(agent_run_result.questions, uploaded_papers=code_run_result.uploaded_papers)
-        status = "一致" if code_result == agent_result else "存在差异"
-        diff_summary = "两边切题结果一致。"
-        agent_metadata = agent_run_result.module_metadata["split"]
-        provider_note = agent_metadata.get("provider_note", "")
-        if agent_metadata.get("is_placeholder"):
-            status = "Agent 未返回"
-            diff_summary = provider_note or "Agent 切题未返回结果。"
-        elif status != "一致":
-            diff_summary = "两边切题数量或题号集合不同。"
-        elif provider_note:
-            diff_summary = f"{diff_summary}{provider_note}"
-        return DualRunSectionComparison(
-            module_name="切题",
-            code_result=code_result,
-            agent_result=agent_result,
-            status=status,
-            diff_summary=diff_summary,
-        )
-
-    def _compare_duplicate_section(
-        self,
-        code_run_result: PipelineRunResult,
-        agent_run_result: PipelineRunResult,
-    ) -> DualRunSectionComparison:
-        code_result = self._duplicate_summary(code_run_result.similarity_matches)
-        agent_result = self._duplicate_summary(agent_run_result.similarity_matches)
-        status = "一致" if code_result == agent_result else "存在差异"
-        diff_summary = "两边重复题目统计一致。"
-        agent_metadata = agent_run_result.module_metadata["compare"]
-        provider_note = agent_metadata.get("provider_note", "")
-        if agent_metadata.get("is_placeholder"):
-            status = "Agent 未返回"
-            diff_summary = provider_note or "Agent 查重比对未返回结果。"
-        elif status != "一致":
-            diff_summary = "两边重复题目数量或等级分布不同。"
-        elif provider_note:
-            diff_summary = f"{diff_summary}{provider_note}"
-        return DualRunSectionComparison(
-            module_name="查重比对",
-            code_result=code_result,
-            agent_result=agent_result,
-            status=status,
-            diff_summary=diff_summary,
-        )
-
-    def _compare_spellcheck_section(
-        self,
-        code_run_result: PipelineRunResult,
-        agent_run_result: PipelineRunResult,
-    ) -> DualRunSectionComparison:
-        code_result = self._spellcheck_summary(code_run_result.spellcheck_issues)
-        agent_result = self._spellcheck_summary(agent_run_result.spellcheck_issues)
-        status = "一致" if code_result == agent_result else "存在差异"
-        diff_summary = "两边错字检查统计一致。"
-        provider_note = agent_run_result.module_metadata["spellcheck"].get("provider_note", "")
-        if agent_run_result.module_metadata["spellcheck"].get("is_placeholder"):
-            status = "Agent 未返回"
-            diff_summary = provider_note or "Agent 侧当前未返回错字结果。"
-        elif status != "一致":
-            diff_summary = "两边错字问题数量或类型分布不同。"
-        return DualRunSectionComparison(
-            module_name="错字检查",
-            code_result=code_result,
-            agent_result=agent_result,
-            status=status,
-            diff_summary=diff_summary,
-        )
-
-    def _question_summary(self, questions, *, uploaded_papers=None) -> dict:
-        summary: dict[str, dict] = {}
-        for paper in uploaded_papers or []:
-            summary.setdefault(paper.paper_id, {"count": 0, "question_nos": []})
-        for question in questions:
-            paper_summary = summary.setdefault(question.paper_id, {"count": 0, "question_nos": []})
-            paper_summary["count"] += 1
-            paper_summary["question_nos"].append(question.question_no)
-        return summary
-
-    def _duplicate_summary(self, matches: list[SimilarityMatch]) -> dict:
-        summary: dict[str, dict] = {}
-        for match in matches:
-            type_summary = summary.setdefault(match.comparison_type, {"total": 0, "high": 0, "suspect": 0, "same_source": 0})
-            type_summary["total"] += 1
-            if self._is_same_source_match(match):
-                type_summary["same_source"] += 1
-            elif match.level == "高度重复":
-                type_summary["high"] += 1
-            elif match.level == "疑似重复":
-                type_summary["suspect"] += 1
-        return summary
-
-    def _spellcheck_summary(self, issues: list[SpellcheckIssue]) -> dict:
-        summary: dict[str, dict] = {}
-        for issue in issues:
-            paper_summary = summary.setdefault(issue.paper_id, {"total": 0, "types": {}})
-            paper_summary["total"] += 1
-            paper_summary["types"][issue.issue_type] = paper_summary["types"].get(issue.issue_type, 0) + 1
-        return summary
 
     def _build_basic_spellcheck_rows(self, issues: list[SpellcheckIssue]) -> list[dict]:
         return [
@@ -972,7 +541,6 @@ class ReportBuilder:
                     "match_id": match.match_id,
                     "comparison_label": comparison_label(match.comparison_type),
                     "score": match.similarity_score,
-                    "agent_score": None,
                     "level": match.level,
                     "source_label": format_match_endpoint_label(match, side="source"),
                     "target_label": format_match_endpoint_label(match, side="target"),
@@ -987,69 +555,22 @@ class ReportBuilder:
         return rows
 
     def _is_same_source_match(self, match: SimilarityMatch) -> bool:
-        return bool(match.is_same_source_question or match.level == "疑似原题")
+        return bool(match.is_same_source_question or match.level == "疑似同源")
 
     def _build_same_source_reason(self, match: SimilarityMatch) -> str:
         literal_score = match.literal_score if match.literal_score is not None else match.similarity_score
         template_score = match.template_score if match.template_score is not None else match.similarity_score
         if match.is_same_source_question:
             return f"模板分 {template_score}% 明显高于字面分 {literal_score}% ，更像同题干改参数或改数字后的同源题。"
-        return f"模板分 {template_score}% 达到原题阈值，字面分 {literal_score}% 未完全重合，建议按疑似原题人工复核。"
-
-    def _pop_matching_spellcheck_issue(
-        self,
-        issue: SpellcheckIssue,
-        issue_pool: list[SpellcheckIssue],
-    ) -> SpellcheckIssue | None:
-        signature = spellcheck_signature(issue)
-        for index, agent_issue in enumerate(issue_pool):
-            if spellcheck_signature(agent_issue) == signature:
-                return issue_pool.pop(index)
-        return None
-
-    def _pop_matching_similarity_match(
-        self,
-        match: SimilarityMatch,
-        match_pool: list[SimilarityMatch],
-    ) -> SimilarityMatch | None:
-        signature = similarity_signature(match)
-        for index, agent_match in enumerate(match_pool):
-            if similarity_signature(agent_match) == signature:
-                return match_pool.pop(index)
-        return None
-
-    def _same_match_level(self, code_match: SimilarityMatch, agent_match: SimilarityMatch) -> bool:
-        same_level = code_match.level == agent_match.level
-        score_diff = abs(code_match.similarity_score - agent_match.similarity_score)
-        return same_level and score_diff < 1
+        return f"模板分 {template_score}% 达到同源阈值，字面分 {literal_score}% 未完全重合，建议按疑似同源人工复核。"
 
     def _duplicate_sort_key(self, row: dict) -> tuple:
         return (
             0 if row.get("review_status") == "待确认" else 1,
-            0 if row.get("level") == "高度重复" else 1,
+            0 if row.get("level") == "高强度重复" else 1,
             0 if row.get("compare_status") == "评分不同" else 1,
             -float(row.get("score") or 0),
         )
-
-
-def spellcheck_signature(issue: SpellcheckIssue) -> tuple:
-    return (
-        issue.paper_id,
-        issue.question_no,
-        issue.issue_type,
-        issue.issue_text,
-        issue.suggestion,
-    )
-
-
-def similarity_signature(match: SimilarityMatch) -> tuple:
-    return (
-        match.comparison_type,
-        match.source_paper_id,
-        match.source_question_no,
-        match.target_paper_id,
-        match.target_question_no,
-    )
 
 
 def comparison_label(comparison_type: str) -> str:
@@ -1075,7 +596,7 @@ def format_match_endpoint_label(match: SimilarityMatch, *, side: str) -> str:
     if paper_id in {"A", "B"}:
         return f"{paper_id} 卷第 {question_no} 题"
     if match.comparison_type == "history_bank":
-        return f"历史库《{paper_label}》第 {question_no} 题"
+        return f"历史库 {paper_label} 第 {question_no} 题"
     return f"{paper_label} 第 {question_no} 题"
 
 
@@ -1114,7 +635,7 @@ def _unique_preview(values: list[str], *, limit: int = 3) -> str:
 
 
 def _complex_review_level(flags: list[str]) -> str:
-    if "图片题" in flags and "OCR回填" in flags:
+    if "图片题" in flags and "OCR 回填" in flags:
         return "高风险"
     if "图片题" in flags or "图表题" in flags:
         return "需复核"

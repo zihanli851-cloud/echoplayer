@@ -18,19 +18,8 @@
     {% for paper in report.uploaded_papers %}
       {% set _ = meta_items.append(paper.paper_id ~ " 卷：" ~ paper.filename ~ " / " ~ paper.page_count ~ " 页") %}
     {% endfor %}
-    {% set actions_html = '<a href=\"/\">返回上传页</a>' ~ ('<a href=\"/reports/' ~ review_session_id ~ '\">打开历史报告</a>' if review_session_id else '') ~ '<button type=\"button\" id=\"export-json\">导出当前对照 JSON</button><button type=\"button\" id=\"export-pdf\">导出审查 PDF</button><button type=\"button\" onclick=\"window.print()\">打印页面</button>' %}
+    {% set actions_html = '<a href=\"/\">返回上传页</a>' ~ ('<a href=\"/reports/' ~ review_session_id ~ '\">打开历史报告</a>' if review_session_id else '') ~ '<button type=\"button\" id=\"export-json\">导出当前报告 JSON</button><button type=\"button\" id=\"export-pdf\">导出审查 PDF</button><button type=\"button\" onclick=\"window.print()\">打印页面</button>' %}
     {% include "partials/layout/page_header.html" %}
-
-    {% if agent_job %}
-    <section class="section" id="agent-job-panel" data-agent-job-id="{{ agent_job.job_id }}">
-      <div class="comparison-note">
-        <h3>Agent 对照后台运行中</h3>
-        <p>任务状态：<strong id="agent-job-status">{{ agent_job.status }}</strong> ｜任务 ID：{{ agent_job.job_id }}</p>
-        <p id="agent-job-message">代码版报告已先生成，Agent 对照完成后会在此处回填完整明细。</p>
-        <div class="agent-detail" id="agent-job-detail" aria-live="polite"></div>
-      </div>
-    </section>
-    {% endif %}
 
     {% include "partials/report/report_summary.html" %}
 
@@ -39,7 +28,6 @@
       <div class="section-head">
         <div>
           <h2>待确认聚合视图</h2>
-          <p>把最需要人工决策的重复题和疑似原题集中到第一屏，优先进入复核流程。</p>
         </div>
       </div>
       <div class="review-focus-grid">
@@ -47,8 +35,6 @@
         <article class="review-focus-card">
           <strong>{{ item.label }}</strong>
           <span class="count">{{ item.count }}</span>
-          <p>{{ item.description }}</p>
-          <p>高优先项 {{ item.high_count }}</p>
           <div class="actions">
             <a href="{{ item.target }}" class="btn">跳到该区块</a>
           </div>
@@ -62,7 +48,6 @@
       <div class="report-toolbar">
         <div class="toolbar-card">
           <h2>筛选与审查视角</h2>
-          <p style="margin-top: 8px;">优先把页面收敛到高风险、待确认或指定卷别，减少一次性浏览全部结果的压力。</p>
           <div class="filter-row" style="margin-top: 14px;">
             <label class="filter-chip">
               <input type="checkbox" id="filter-risk-only" />
@@ -83,13 +68,11 @@
 
         <div class="toolbar-card">
           <h2>风险导航</h2>
-          <p style="margin-top: 8px;">从这里直接跳到最需要人工复核的区块，先看高风险，再看完整明细。</p>
           <div class="risk-nav" style="margin-top: 14px;">
             {% for item in risk_navigation %}
             <a href="#{{ item.id }}" class="risk-nav-card {% if not item.count %}is-empty{% endif %}">
               <strong>{{ item.label }}</strong>
               <span>{{ item.count }}</span>
-              <small>{% if item.count %}点击跳转到对应区块{% else %}当前没有待处理项{% endif %}</small>
             </a>
             {% endfor %}
           </div>
@@ -101,21 +84,20 @@
       <div class="section-head">
         <div>
           <h2>历史题库状态</h2>
-          <p>当前请求会把上传试卷与本地 `history_bank` 做文本相似度比对，这里展示本次参与比对的历史题库装载情况。</p>
         </div>
       </div>
 
       <div class="dashboard">
-        <article class="metric"><strong>历史库文件总数</strong><span>{{ history_bank_summary.total_files or 0 }}</span><small>扫描到的 PDF 文件数量</small></article>
-        <article class="metric"><strong>成功加载</strong><span>{{ history_bank_summary.loaded_files or 0 }}</span><small>成功提取文本并切题的历史试卷数量</small></article>
-        <article class="metric"><strong>历史题目数</strong><span>{{ history_bank_summary.question_count or 0 }}</span><small>本次可参与历史比对的题目总数</small></article>
-        <article class="metric"><strong>加载失败</strong><span>{{ history_bank_summary.failed_files or 0 }}</span><small>已自动跳过，不阻塞当前报告生成</small></article>
+        <article class="metric"><strong>历史库文件总数</strong><span>{{ history_bank_summary.total_files or 0 }}</span></article>
+        <article class="metric"><strong>成功加载</strong><span>{{ history_bank_summary.loaded_files or 0 }}</span></article>
+        <article class="metric"><strong>历史题目数</strong><span>{{ history_bank_summary.question_count or 0 }}</span></article>
+        <article class="metric"><strong>加载失败</strong><span>{{ history_bank_summary.failed_files or 0 }}</span></article>
       </div>
 
       {% if history_bank_summary.load_error %}
       <div class="comparison-note" style="margin-top: 16px;"><p>历史题库加载失败：{{ history_bank_summary.load_error }}</p></div>
       {% elif history_bank_summary.failed_files %}
-      <div class="comparison-note" style="margin-top: 16px;"><p>有 {{ history_bank_summary.failed_files }} 份历史试卷未成功加载，系统已自动跳过它们，不影响当前报告生成。</p></div>
+      <div class="comparison-note" style="margin-top: 16px;"><p>历史题库加载失败：{{ history_bank_summary.failed_files }} 份</p></div>
       {% endif %}
     </section>
 
@@ -125,13 +107,11 @@
     {% include "partials/report/report_same_source.html" %}
     {% include "partials/report/report_duplicate_rows.html" %}
     {% include "partials/report/report_spellcheck_rows.html" %}
-    {% include "partials/report/report_dual_run.html" %}
 
     <section class="section section-anchor" id="section-appendix" data-risk-level="info" data-paper-scope="all">
       <div class="section-head">
         <div>
           <h2>附录与诊断</h2>
-          <p>保留上传试卷、历史题库异常和系统诊断信息，方便审查后回溯上下文。</p>
         </div>
       </div>
 
@@ -177,16 +157,16 @@
         <article class="appendix-card">
           <h3>系统诊断摘要</h3>
           <div class="compare-summary" style="margin-top: 14px;">
-            <div class="agent-detail-item">
+            <div class="detail-item">
               <strong>历史题库加载</strong>
               <p>成功 {{ history_bank_summary.loaded_files or 0 }} 份，失败 {{ history_bank_summary.failed_files or 0 }} 份，命中题目 {{ history_bank_summary.question_count or 0 }} 道。</p>
             </div>
-            <div class="agent-detail-item">
+            <div class="detail-item">
               <strong>人工复核状态</strong>
               <p>待确认 {{ report.dashboard.pending_review_total or 0 }} 条；疑似原题 {{ report.dashboard.same_source_total or 0 }} 条；错字问题 {{ report.dashboard.spellcheck_issue_total or 0 }} 条。</p>
             </div>
             {% if history_bank_summary.load_error %}
-            <div class="agent-detail-item">
+            <div class="detail-item">
               <strong>历史题库异常</strong>
               <p>{{ history_bank_summary.load_error }}</p>
             </div>
@@ -206,7 +186,6 @@
 {% block scripts %}
 <script src="/static/js/export.js"></script>
 <script src="/static/js/report.js"></script>
-<!-- compat: renderAgentResultPayload -->
 <script>
   window.EchoPaperReport && window.EchoPaperReport.init({
     watermarkText: "{{ report.teacher_name }} / {{ report.teacher_id }}",

@@ -11,20 +11,18 @@
   <section class="panel">
     {% set eyebrow = "EchoPaper / 历史报告" %}
     {% set title = "历史报告列表" %}
-    {% set description = "展示最近 " ~ limit ~ " 条已保存的报告快照，可继续打开摘要页、导出 JSON 或导出 PDF。" %}
+    {% set description = "" %}
     {% include "partials/layout/page_header.html" %}
 
-    {% set stats = namespace(pending=0, exported=0, agent=0) %}
+    {% set stats = namespace(pending=0, exported=0) %}
     {% for item in snapshots %}
       {% if item.pending_review_count %}{% set stats.pending = stats.pending + 1 %}{% endif %}
       {% if item.export_count %}{% set stats.exported = stats.exported + 1 %}{% endif %}
-      {% if item.agent_job_id %}{% set stats.agent = stats.agent + 1 %}{% endif %}
     {% endfor %}
     <div class="admin-summary-grid section">
-      <article class="admin-soft-card"><strong>当前结果数</strong><span class="metric-value">{{ snapshots | length }}</span><p>本次筛选后返回的历史报告数量。</p></article>
-      <article class="admin-soft-card"><strong>待复核报告</strong><span class="metric-value">{{ stats.pending }}</span><p>仍存在待确认项的历史报告数。</p></article>
-      <article class="admin-soft-card"><strong>已导出报告</strong><span class="metric-value">{{ stats.exported }}</span><p>已有导出记录的历史报告数。</p></article>
-      <article class="admin-soft-card"><strong>Agent 已关联</strong><span class="metric-value">{{ stats.agent }}</span><p>已写入 Agent job 的历史报告数。</p></article>
+      <article class="admin-soft-card"><strong>当前结果数</strong><span class="metric-value">{{ snapshots | length }}</span></article>
+      <article class="admin-soft-card"><strong>待复核报告</strong><span class="metric-value">{{ stats.pending }}</span></article>
+      <article class="admin-soft-card"><strong>已导出报告</strong><span class="metric-value">{{ stats.exported }}</span></article>
     </div>
   </section>
 
@@ -41,7 +39,7 @@
       </label>
       <label>
         关键词
-        <input type="search" name="q" value="{{ active_keyword }}" placeholder="教师、工号、session、Agent job" />
+        <input type="search" name="q" value="{{ active_keyword }}" placeholder="教师、工号、session、科目" />
       </label>
       <label>
         最近记录数
@@ -56,7 +54,6 @@
 
   <section class="panel section">
     <div class="table-toolbar">
-      <p>优先打开“待复核”较多、近期导出频繁或存在 Agent 记录的报告。</p>
     </div>
     {% if snapshots %}
     <div class="table-shell">
@@ -69,7 +66,6 @@
             <th>试卷/题目</th>
             <th>问题摘要</th>
             <th>导出</th>
-            <th>Agent</th>
             <th>操作</th>
           </tr>
         </thead>
@@ -96,7 +92,6 @@
               尚未导出
               {% endif %}
             </td>
-            <td data-label="Agent">{{ item.agent_job_id or "未提交" }}</td>
             <td data-label="操作"><a class="open-link" href="/reports/{{ item.session_id }}">打开报告</a></td>
           </tr>
           {% endfor %}

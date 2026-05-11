@@ -1,6 +1,4 @@
 from datetime import datetime
-from typing import Any
-
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -102,17 +100,5 @@ class ReportData(BaseModel):
     review_status_options: list[str] = Field(
         default_factory=lambda: ["待确认", "确认重复", "排除误报"]
     )
-
-    model_config = ConfigDict(extra="ignore")
-
-
-class DualRunSectionComparison(BaseModel):
-    """Represents one module-level comparison between code and Agent results."""
-
-    module_name: str
-    code_result: dict[str, Any] | list[dict[str, Any]] | None = None
-    agent_result: dict[str, Any] | list[dict[str, Any]] | None = None
-    status: str
-    diff_summary: str
 
     model_config = ConfigDict(extra="ignore")
